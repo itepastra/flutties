@@ -1,0 +1,20 @@
+package pages
+
+import ()
+
+css grid() {
+	max-width: 100%;
+}
+
+templ Index() {
+	<!DOCTYPE html>
+	<html lang="nl">
+		<head>
+			<title>Pixelflut</title>
+			<link rel="icon" type="image/png" href="/static/icon"/>
+		</head>
+		<body>
+			<image class={ grid() } src="/grid.jpg"></image>
+		</body>
+	</html>
+}
