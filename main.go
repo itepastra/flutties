@@ -24,9 +24,14 @@ import (
 )
 
 const (
-	TIMEOUT_DELAY     = 30 * time.Second
-	BOUNDARY_STRING   = "thisisaboundary"
-	JPEG_UPDATE_TIMER = 25 * time.Millisecond
+	TIMEOUT_DELAY       = 30 * time.Second
+	BOUNDARY_STRING     = "thisisaboundary"
+	BOUNDARY_STRING_ICO = "thisisicoboundary"
+	JPEG_UPDATE_TIMER   = 25 * time.Millisecond
+	CANVAS_WIDTH        = 800
+	CANVAS_HEIGHT       = 600
+	ICON_WIDTH          = 32
+	ICON_HEIGHT         = 32
 )
 
 func byteComp(a []byte, b []byte) bool {
@@ -113,7 +118,7 @@ func parsePx(command []byte) (x uint64, y uint64, color color.Color, err error) 
 	return
 }
 
-func handleConnection(conn net.Conn, grid *types.Grid) {
+func handleConnection(conn net.Conn, grid *types.Grid, iconGrid *types.Grid) {
 	log.Printf("started connection %v", conn)
 	defer func() {
 		log.Printf("stopped connection %v", conn)
@@ -156,6 +161,28 @@ func handleConnection(conn net.Conn, grid *types.Grid) {
 				log.Printf("PX format %s was not correct %e", cmd, err)
 				return
 			}
+		} else if byteComp(cmd, []byte("ISIZE")) {
+			_, err = conn.Write([]byte(fmt.Sprintf("ISIZE %d %d\n", iconGrid.SizeX, iconGrid.SizeY)))
+		} else if byteComp(cmd, []byte("IPX ")) {
+			x, y, color, err := parsePx(cmd)
+			if color == nil {
+				c, err := iconGrid.Get(int(x), int(y))
+				if err != nil {
+					log.Printf("Could not get color at (%d, %d)", x, y)
+					return
+				}
+				_, err = conn.Write([]byte(fmt.Sprintf("IPX %d %d %s\n", x, y, helpers.PxToHex(c))))
+			} else {
+				err := iconGrid.Set(int(x), int(y), color)
+				if err != nil {
+					log.Printf("Could not set color at (%d, %d)", x, y)
+					return
+				}
+			}
+			if err != nil {
+				log.Printf("IPX format %s was not correct %e", cmd, err)
+				return
+			}
 		} else {
 			return
 		}
@@ -183,42 +210,23 @@ func main() {
 	multiWriter := multi.NewMapWriter()
 	icoWriter := multi.NewMapWriter()
 
-	grid := types.NewGridRandom(800, 600)
-	icoGrid := types.NewGridRandom(32, 32)
+	grid := types.NewGridRandom(CANVAS_WIDTH, CANVAS_HEIGHT)
+	icoGrid := types.NewGridRandom(ICON_WIDTH, ICON_HEIGHT)
 
-	{
-		ln, err := net.Listen("tcp", ":7791")
-		if err != nil {
-			log.Fatalf(err.Error())
-		}
-		log.Println("pixelflut started listening")
-		go func() {
-			for {
-				conn, err := ln.Accept()
-				if err != nil {
-					log.Printf("rip connection: %e", err)
-				}
-				go handleConnection(conn, &grid)
-			}
-		}()
+	ln, err := net.Listen("tcp", ":7791")
+	if err != nil {
+		log.Fatalf(err.Error())
 	}
-
-	{
-		ln, err := net.Listen("tcp", ":7790")
-		if err != nil {
-			log.Fatalf(err.Error())
-		}
-		log.Println("icoflut started listening")
-		go func() {
-			for {
-				conn, err := ln.Accept()
-				if err != nil {
-					log.Printf("rip connection: %e", err)
-				}
-				go handleConnection(conn, &icoGrid)
+	log.Println("pixelflut started listening")
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				log.Printf("rip connection: %e", err)
 			}
-		}()
-	}
+			go handleConnection(conn, &grid, &icoGrid)
+		}
+	}()
 
 	http.Handle("/", templ.Handler(pages.Index()))
 	//http.Handle("/grid", templ.Handler(pages.Grid(&grid)))
@@ -226,11 +234,21 @@ func main() {
 	go frameGenerator(&grid, multiWriter)
 	go frameGenerator(&icoGrid, icoWriter)
 
-	http.HandleFunc("/icon/{id}", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/icoflut.js", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/icoflut.js") })
+
+	http.HandleFunc("/icon", func(w http.ResponseWriter, r *http.Request) {
+		// w.Header().Set(
+		// 	"Content-Type",
+		// 	fmt.Sprintf("multipart/x-mixed-replace;boundary=%s", BOUNDARY_STRING_ICO),
+		// )
 		w.Header().Set("Content-Type", "image/jpg")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Connection", "close")
 		jpeg.Encode(w, &icoGrid, &jpeg.Options{Quality: 100})
+
+		// icoWriter.Add(w)
+		// <-r.Context().Done()
+		// icoWriter.Remove(w)
 	})
 
 	http.HandleFunc("/grid.jpg", func(w http.ResponseWriter, r *http.Request) {

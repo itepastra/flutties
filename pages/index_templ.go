@@ -92,7 +92,7 @@ func Index() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<!doctype html><html lang=\"nl\"><head><title>Pixelflut</title><link rel=\"icon\" type=\"image/jpg\" href=\"/icon/0\"><script type=\"text/javascript\">\n\t\t\t\tvar link = document.querySelector(\"link[rel~='icon']\");\n\t\t\t\t(function(){\n\t\t\t\t\tconsole.log(\"am attempting\");\n\t\t\t\t\tlink.href = \"/icon/\" + (Math.random() + 1).toString(36).substring(7);\n\t\t\t\t\tsetTimeout(arguments.callee, 50);\n\t\t\t\t})();\n\t\t\t</script></head>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<!doctype html><html lang=\"nl\"><head><title>Pixelflut</title><link id=\"favicon\" rel=\"icon\" href=\"/icon\"><script src=\"/icoflut.js\"></script></head>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
