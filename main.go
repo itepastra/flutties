@@ -182,12 +182,7 @@ func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter) {
 func main() {
 	multiWriter := multi.NewMapWriter()
 
-	grid := types.NewGrid(800, 600, color.RGBA{
-		R: 0,
-		G: 0,
-		B: 0,
-		A: 0,
-	})
+	grid := types.NewGridRandom(800, 600)
 
 	ln, err := net.Listen("tcp", ":7791")
 	if err != nil {

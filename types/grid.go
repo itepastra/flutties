@@ -4,6 +4,7 @@ import (
 	"errors"
 	"image"
 	"image/color"
+	"math/rand/v2"
 )
 
 type Grid struct {
@@ -20,6 +21,27 @@ func NewGrid(sizeX int, sizeY int, defaultValue color.Color) Grid {
 	}
 	for i := range grid.Cells {
 		grid.Cells[i] = defaultValue
+	}
+	return grid
+}
+
+func randomColor() color.Color {
+	cint := rand.Uint32()
+	return color.RGBA{
+		R: uint8(cint >> 24),
+		G: uint8(cint >> 16),
+		B: uint8(cint >> 8),
+		A: 255,
+	}
+}
+func NewGridRandom(sizeX int, sizeY int) Grid {
+	grid := Grid{
+		SizeX: sizeX,
+		SizeY: sizeY,
+		Cells: make([]color.Color, (sizeX * sizeY)),
+	}
+	for i := range grid.Cells {
+		grid.Cells[i] = randomColor()
 	}
 	return grid
 }
