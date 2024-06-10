@@ -49,11 +49,9 @@ func timeTillDestroy() time.Time {
 }
 
 func helpMsg() []byte {
-	return []byte(`
-	This is pixelgo server
-	it implements the pixelflut protocol :3
-	idk what to write here yet
-	`)
+	return []byte(`This is pixelgo server
+it implements the pixelflut protocol :3
+idk what to write here yet`)
 }
 
 func parseHex(part string) (color.Color, error) {
