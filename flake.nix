@@ -23,13 +23,19 @@
         rec {
           default = flutties;
 
-          flutties = pkgs.buildGoModule {
+          flutties = pkgs.stdenv.mkDerivation {
             name = "flutties";
             src = ./.;
             pwd = ./.;
             buildInputs = [ pkgs.templ pkgs.go ];
-            preBuild = ''
+            buildPhase = ''
+              export HOME=$(pwd)
               templ generate
+              go build
+            '';
+            installPhase = ''
+              mkdir -p $out/bin
+              mv flutties $out/bin
             '';
           };
         });
@@ -45,6 +51,7 @@
             goreleaser
             gotestsum
             ko # Used to build Docker images.
+            templ
           ];
         });
 

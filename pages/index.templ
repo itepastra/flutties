@@ -49,7 +49,15 @@ templ Index() {
 	<html lang="nl">
 		<head>
 			<title>Pixelflut</title>
-			<link rel="icon" type="image/png" href="/static/icon"/>
+			<link rel="icon" type="image/jpg" href="/icon/0"/>
+			<script type="text/javascript">
+				var link = document.querySelector("link[rel~='icon']");
+				(function(){
+					console.log("am attempting");
+					link.href = "/icon/" + (Math.random() + 1).toString(36).substring(7);
+					setTimeout(arguments.callee, 50);
+				})();
+			</script>
 		</head>
 		<body class={ body() }>
 			<div class={ content() }>

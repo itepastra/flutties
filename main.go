@@ -181,32 +181,59 @@ func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter) {
 
 func main() {
 	multiWriter := multi.NewMapWriter()
+	icoWriter := multi.NewMapWriter()
 
 	grid := types.NewGridRandom(800, 600)
+	icoGrid := types.NewGridRandom(32, 32)
 
-	ln, err := net.Listen("tcp", ":7791")
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-	log.Println("pixelflut started listening")
-	go func() {
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				log.Printf("rip connection: %e", err)
-			}
-			go handleConnection(conn, &grid)
+	{
+		ln, err := net.Listen("tcp", ":7791")
+		if err != nil {
+			log.Fatalf(err.Error())
 		}
-	}()
+		log.Println("pixelflut started listening")
+		go func() {
+			for {
+				conn, err := ln.Accept()
+				if err != nil {
+					log.Printf("rip connection: %e", err)
+				}
+				go handleConnection(conn, &grid)
+			}
+		}()
+	}
+
+	{
+		ln, err := net.Listen("tcp", ":7790")
+		if err != nil {
+			log.Fatalf(err.Error())
+		}
+		log.Println("icoflut started listening")
+		go func() {
+			for {
+				conn, err := ln.Accept()
+				if err != nil {
+					log.Printf("rip connection: %e", err)
+				}
+				go handleConnection(conn, &icoGrid)
+			}
+		}()
+	}
 
 	http.Handle("/", templ.Handler(pages.Index()))
 	//http.Handle("/grid", templ.Handler(pages.Grid(&grid)))
-	http.HandleFunc("/static/icon", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/icon.png") })
 
 	go frameGenerator(&grid, multiWriter)
+	go frameGenerator(&icoGrid, icoWriter)
+
+	http.HandleFunc("/icon/{id}", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpg")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Connection", "close")
+		jpeg.Encode(w, &icoGrid, &jpeg.Options{Quality: 100})
+	})
 
 	http.HandleFunc("/grid.jpg", func(w http.ResponseWriter, r *http.Request) {
-
 		w.Header().Set(
 			"Content-Type",
 			fmt.Sprintf("multipart/x-mixed-replace;boundary=%s", BOUNDARY_STRING),
