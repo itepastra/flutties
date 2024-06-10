@@ -17,10 +17,10 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
-	"pixelgo.noa.voorwaarts.nl/helpers"
-	"pixelgo.noa.voorwaarts.nl/helpers/multi"
-	"pixelgo.noa.voorwaarts.nl/pages"
-	"pixelgo.noa.voorwaarts.nl/types"
+	"github.com/itepastra/flutties/helpers"
+	"github.com/itepastra/flutties/helpers/multi"
+	"github.com/itepastra/flutties/pages"
+	"github.com/itepastra/flutties/types"
 )
 
 const (
