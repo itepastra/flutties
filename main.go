@@ -31,8 +31,6 @@ const (
 	BOUNDARY_STRING_ICO = "thisisicoboundary"
 	JPEG_UPDATE_TIMER   = 25 * time.Millisecond
 	ICON_REFRESH_TIME   = 25 * time.Millisecond
-	CANVAS_WIDTH        = 800
-	CANVAS_HEIGHT       = 600
 	ICON_WIDTH          = 32
 	ICON_HEIGHT         = 32
 )
@@ -44,6 +42,8 @@ var (
 	pixelflut_port          = flag.String("pixelflut", ":7791", "the port where the pixelflut is accessible internally")
 	pixelflut_port_external = flag.String("pixelflut_ext", ":55282", "the port where the pixelflut is accessible externally, used for the webpage")
 	web_port                = flag.String("web", ":7792", "the address the website should listen on")
+	width                   = flag.Int("width", 800, "the canvas width")
+	height                  = flag.Int("height", 600, "the canvas height")
 )
 
 func byteComp(a []byte, b []byte) bool {
@@ -215,7 +215,7 @@ func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter) {
 		time.Sleep(JPEG_UPDATE_TIMER)
 		if time.Since(grid.Modified) > JPEG_UPDATE_TIMER*2 {
 			mt := grid.Modified
-			for mt == grid.Modified && time.Since(grid.Modified) < time.Second {
+			for mt == grid.Modified && time.Since(grid.Modified) < time.Second*2 {
 				time.Sleep(JPEG_UPDATE_TIMER)
 			}
 			grid.Modified = time.Now()
@@ -224,9 +224,10 @@ func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter) {
 }
 
 func main() {
+	flag.Parse()
 	multiWriter := multi.NewMapWriter()
 
-	grid := types.NewGridRandom(CANVAS_WIDTH, CANVAS_HEIGHT)
+	grid := types.NewGridRandom(*width, *height)
 	icoGrid := types.NewGridRandom(ICON_WIDTH, ICON_HEIGHT)
 
 	ln, err := net.Listen("tcp", *pixelflut_port)
