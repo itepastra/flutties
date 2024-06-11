@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"flag"
 	"fmt"
 	"image/color"
 	"image/jpeg"
@@ -37,6 +38,13 @@ const (
 )
 
 var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+var (
+	cpuprofile              = flag.String("cpuprofile", "", "write cpu profile to `file`")
+	memprofile              = flag.String("memprofile", "", "write memory profile to `file`")
+	pixelflut_port          = flag.String("pixelflut", ":7791", "the port where the pixelflut is accessible internally")
+	pixelflut_port_external = flag.String("pixelflut_ext", ":55282", "the port where the pixelflut is accessible externally, used for the webpage")
+	web_port                = flag.String("web", ":7792", "the address the website should listen on")
+)
 
 func byteComp(a []byte, b []byte) bool {
 	n := min(len(a), len(b))
@@ -205,6 +213,13 @@ func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter) {
 		writer, _ := multipartWriter.CreatePart(header)
 		jpeg.Encode(writer, grid, &jpeg.Options{Quality: 75})
 		time.Sleep(JPEG_UPDATE_TIMER)
+		if time.Since(grid.Modified) > JPEG_UPDATE_TIMER*2 {
+			mt := grid.Modified
+			for mt == grid.Modified && time.Since(grid.Modified) < time.Second {
+				time.Sleep(JPEG_UPDATE_TIMER)
+			}
+			grid.Modified = time.Now()
+		}
 	}
 }
 
@@ -214,11 +229,11 @@ func main() {
 	grid := types.NewGridRandom(CANVAS_WIDTH, CANVAS_HEIGHT)
 	icoGrid := types.NewGridRandom(ICON_WIDTH, ICON_HEIGHT)
 
-	ln, err := net.Listen("tcp", ":7791")
+	ln, err := net.Listen("tcp", *pixelflut_port)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
-	log.Println("pixelflut started listening")
+	log.Printf("pixelflut started listening at %s", *pixelflut_port)
 	go func() {
 		for {
 			conn, err := ln.Accept()
@@ -229,13 +244,10 @@ func main() {
 		}
 	}()
 
-	http.Handle("/", templ.Handler(pages.Index()))
-	//http.Handle("/grid", templ.Handler(pages.Grid(&grid)))
-
 	go frameGenerator(&grid, multiWriter)
 
+	http.Handle("/", templ.Handler(pages.Index(*pixelflut_port_external)))
 	http.HandleFunc("/icoflut.js", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/icoflut.js") })
-
 	http.HandleFunc("/icoflut", func(w http.ResponseWriter, r *http.Request) {
 		c, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -248,19 +260,23 @@ func main() {
 			if err != nil {
 				return
 			}
-			jpeg.Encode(writer, &icoGrid, &jpeg.Options{Quality: 100})
+			jpeg.Encode(writer, &icoGrid, &jpeg.Options{Quality: 90})
 			time.Sleep(ICON_REFRESH_TIME)
+			if time.Since(icoGrid.Modified) > ICON_REFRESH_TIME {
+				mt := icoGrid.Modified
+				for mt == icoGrid.Modified {
+					time.Sleep(ICON_REFRESH_TIME)
+				}
+			}
 		}
 	})
-
 	http.HandleFunc("/icon", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/jpg")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Connection", "close")
-		jpeg.Encode(w, &icoGrid, &jpeg.Options{Quality: 100})
+		jpeg.Encode(w, &icoGrid, &jpeg.Options{Quality: 90})
 	})
-
-	http.HandleFunc("/grid.jpg", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/grid", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(
 			"Content-Type",
 			fmt.Sprintf("multipart/x-mixed-replace;boundary=%s", BOUNDARY_STRING),
@@ -273,5 +289,5 @@ func main() {
 		multiWriter.Remove(w)
 	})
 
-	log.Fatal(http.ListenAndServe(":7792", nil))
+	log.Fatal(http.ListenAndServe(*web_port, nil))
 }

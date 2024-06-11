@@ -44,7 +44,7 @@ css content() {
  shadowColor)) };
 }
 
-templ Index() {
+templ Index(port string) {
 	<!DOCTYPE html>
 	<html lang="nl">
 		<head>
@@ -54,8 +54,8 @@ templ Index() {
 		</head>
 		<body class={ body() }>
 			<div class={ content() }>
-				<image class={ grid() } src="/grid.jpg"></image>
-				<p class={ text() }>this pixelflut is accessible on port 55282</p>
+				<image class={ grid() } src="/grid"></image>
+				<p class={ text() }>this pixelflut is accessible on port { port }</p>
 			</div>
 		</body>
 	</html>
