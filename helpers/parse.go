@@ -28,8 +28,10 @@ const (
 	SET_RGBA             = 0xC0
 	SOUND_LOOP           = 0xE0
 	SOUND_ONCE           = 0xF0
-	TEXT_1               = 0x40
-	TEXT_2               = 0x50
+	H                    = byte('H')
+	I                    = byte('I')
+	P                    = byte('P')
+	S                    = byte('S')
 )
 
 var (

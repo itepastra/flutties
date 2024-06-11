@@ -59,8 +59,10 @@ const (
 	SET_RGBA             = helpers.SET_RGBA
 	SOUND_LOOP           = helpers.SOUND_LOOP
 	SOUND_ONCE           = helpers.SOUND_ONCE
-	TEXT_1               = helpers.TEXT_1
-	TEXT_2               = helpers.TEXT_2
+	H                    = helpers.H
+	I                    = helpers.I
+	P                    = helpers.P
+	S                    = helpers.S
 )
 
 func helpMsg() []byte {
@@ -100,12 +102,8 @@ func ScanCommands(data []byte, atEOF bool) (advance int, token []byte, err error
 		return 5, data[0:5], nil
 	case SOUND_ONCE:
 		return 5, data[0:5], nil
-	case TEXT_1:
-		if i := bytes.IndexByte(data, '\n'); i >= 0 {
-			// We have a full newline-terminated line.
-			return i + 1, dropCR(data[0:i]), nil
-		}
-	case TEXT_2:
+	case H & 0xf0: // same as I
+	case P & 0xf0: // same as S
 		if i := bytes.IndexByte(data, '\n'); i >= 0 {
 			// We have a full newline-terminated line.
 			return i + 1, dropCR(data[0:i]), nil
@@ -137,8 +135,8 @@ func handleConnection(conn net.Conn, grids [types.GRID_AMOUNT]*types.Grid) {
 		}
 		var err error
 		cmd := c.Bytes()
-		instruction := cmd[0] >> 4
-		if instruction == TEXT_1 || instruction == TEXT_2 {
+		instruction := cmd[0]
+		if instruction == H || instruction == I || instruction == P || instruction == S {
 			err = helpers.TextCmd(cmd, grids, conn, &changedPixels)
 		} else {
 			err = helpers.BinCmd(cmd, grids, conn, &changedPixels)
