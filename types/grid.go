@@ -5,19 +5,22 @@ import (
 	"image"
 	"image/color"
 	"math/rand/v2"
+	"time"
 )
 
 type Grid struct {
-	SizeX int
-	SizeY int
-	Cells []color.Color
+	SizeX    int
+	SizeY    int
+	Cells    []color.Color
+	Modified time.Time
 }
 
 func NewGrid(sizeX int, sizeY int, defaultValue color.Color) Grid {
 	grid := Grid{
-		SizeX: sizeX,
-		SizeY: sizeY,
-		Cells: make([]color.Color, (sizeX * sizeY)),
+		SizeX:    sizeX,
+		SizeY:    sizeY,
+		Cells:    make([]color.Color, (sizeX * sizeY)),
+		Modified: time.Now(),
 	}
 	for i := range grid.Cells {
 		grid.Cells[i] = defaultValue
@@ -36,9 +39,10 @@ func randomColor() color.Color {
 }
 func NewGridRandom(sizeX int, sizeY int) Grid {
 	grid := Grid{
-		SizeX: sizeX,
-		SizeY: sizeY,
-		Cells: make([]color.Color, (sizeX * sizeY)),
+		SizeX:    sizeX,
+		SizeY:    sizeY,
+		Cells:    make([]color.Color, (sizeX * sizeY)),
+		Modified: time.Now(),
 	}
 	for i := range grid.Cells {
 		grid.Cells[i] = randomColor()
@@ -72,6 +76,7 @@ func (g *Grid) Set(x int, y int, c color.Color) error {
 		return errors.New("Out of bounds")
 	}
 	g.Cells[idx] = blend(g.Cells[idx], c)
+	g.Modified = time.Now()
 	return nil
 }
 

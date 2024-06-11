@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/gorilla/websocket"
 	"github.com/itepastra/flutties/helpers"
 	"github.com/itepastra/flutties/helpers/multi"
 	"github.com/itepastra/flutties/pages"
@@ -28,11 +29,14 @@ const (
 	BOUNDARY_STRING     = "thisisaboundary"
 	BOUNDARY_STRING_ICO = "thisisicoboundary"
 	JPEG_UPDATE_TIMER   = 25 * time.Millisecond
+	ICON_REFRESH_TIME   = 25 * time.Millisecond
 	CANVAS_WIDTH        = 800
 	CANVAS_HEIGHT       = 600
 	ICON_WIDTH          = 32
 	ICON_HEIGHT         = 32
 )
+
+var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 
 func byteComp(a []byte, b []byte) bool {
 	n := min(len(a), len(b))
@@ -206,7 +210,6 @@ func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter) {
 
 func main() {
 	multiWriter := multi.NewMapWriter()
-	icoWriter := multi.NewMapWriter()
 
 	grid := types.NewGridRandom(CANVAS_WIDTH, CANVAS_HEIGHT)
 	icoGrid := types.NewGridRandom(ICON_WIDTH, ICON_HEIGHT)
@@ -230,23 +233,31 @@ func main() {
 	//http.Handle("/grid", templ.Handler(pages.Grid(&grid)))
 
 	go frameGenerator(&grid, multiWriter)
-	go frameGenerator(&icoGrid, icoWriter)
 
 	http.HandleFunc("/icoflut.js", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/icoflut.js") })
 
+	http.HandleFunc("/icoflut", func(w http.ResponseWriter, r *http.Request) {
+		c, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("upgrade: %e", err)
+			return
+		}
+		defer c.Close()
+		for {
+			writer, err := c.NextWriter(websocket.BinaryMessage)
+			if err != nil {
+				return
+			}
+			jpeg.Encode(writer, &icoGrid, &jpeg.Options{Quality: 100})
+			time.Sleep(ICON_REFRESH_TIME)
+		}
+	})
+
 	http.HandleFunc("/icon", func(w http.ResponseWriter, r *http.Request) {
-		// w.Header().Set(
-		// 	"Content-Type",
-		// 	fmt.Sprintf("multipart/x-mixed-replace;boundary=%s", BOUNDARY_STRING_ICO),
-		// )
 		w.Header().Set("Content-Type", "image/jpg")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Connection", "close")
 		jpeg.Encode(w, &icoGrid, &jpeg.Options{Quality: 100})
-
-		// icoWriter.Add(w)
-		// <-r.Context().Done()
-		// icoWriter.Remove(w)
 	})
 
 	http.HandleFunc("/grid.jpg", func(w http.ResponseWriter, r *http.Request) {
