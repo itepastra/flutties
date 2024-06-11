@@ -204,14 +204,23 @@ func handleConnection(conn net.Conn, grid *types.Grid, iconGrid *types.Grid) {
 
 }
 
-func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter) {
+func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter, ch <-chan byte) {
 	multipartWriter := multipart.NewWriter(multiWriter)
 	multipartWriter.SetBoundary(BOUNDARY_STRING)
 	header := make(textproto.MIMEHeader)
 	header.Add("Content-Type", "image/jpeg")
 	for {
-		writer, _ := multipartWriter.CreatePart(header)
-		jpeg.Encode(writer, grid, &jpeg.Options{Quality: 75})
+		select {
+		case <-ch:
+			writer, _ := multipartWriter.CreatePart(header)
+			jpeg.Encode(writer, grid, &jpeg.Options{Quality: 75})
+		}
+	}
+}
+
+func frameTimer(grid *types.Grid, ch chan<- byte) {
+	for {
+		ch <- 0
 		time.Sleep(JPEG_UPDATE_TIMER)
 		if time.Since(grid.Modified) > JPEG_UPDATE_TIMER*2 {
 			mt := grid.Modified
@@ -245,7 +254,10 @@ func main() {
 		}
 	}()
 
-	go frameGenerator(&grid, multiWriter)
+	ch := make(chan byte)
+
+	go frameGenerator(&grid, multiWriter, ch)
+	go frameTimer(&grid, ch)
 
 	http.Handle("/", templ.Handler(pages.Index(*pixelflut_port_external)))
 	http.HandleFunc("/icoflut.js", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/icoflut.js") })
@@ -286,6 +298,7 @@ func main() {
 		w.Header().Set("Connection", "close")
 
 		multiWriter.Add(w)
+		ch <- 1
 		<-r.Context().Done()
 		multiWriter.Remove(w)
 	})
