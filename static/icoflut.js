@@ -2,7 +2,7 @@ window.onload = function() {
 	var favicon = document.getElementById("favicon");
 
 
-	const socket = new WebSocket("ws://localhost:7792/icoflut");
+	const socket = new WebSocket("/icoflut");
 
 	socket.onopen = function() {
 		console.log('Connected to icoflut.');
