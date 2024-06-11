@@ -93,7 +93,7 @@ func statsTable() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<table><thead><tr><th>Stat</th><th>Total</th><th>Per Second</th></tr></thead> <tbody><tr><td>Pixels changed in main</td><td id=\"pixelCounter\">Loading...</td><td id=\"pixelCounterAvg\">Loading...</td></tr><tr><td>Pixels changed in icon</td><td id=\"iconCounter\">Loading...</td><td id=\"iconCounterAvg\">Loading...</td></tr></tbody></table><table><tbody><tr><td>Clients Connected</td><td id=\"clientCounter\">Loading...</td></tr></tbody></table>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<table><thead><tr><th>Stat</th><th>Total</th><th>Last Second</th></tr></thead> <tbody><tr><td>Pixels changed in main</td><td id=\"pixelCounter\">Loading...</td><td id=\"pixelCounterAvg\">Loading...</td></tr><tr><td>Pixels changed in icon</td><td id=\"iconCounter\">Loading...</td><td id=\"iconCounterAvg\">Loading...</td></tr></tbody></table><table><tbody><tr><td>Clients Connected</td><td id=\"clientCounter\">Loading...</td></tr></tbody></table>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
