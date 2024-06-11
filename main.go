@@ -81,7 +81,7 @@ func ScanCommands(data []byte, atEOF bool) (advance int, token []byte, err error
 		return 0, nil, nil
 	}
 
-	switch data[0] >> 4 {
+	switch data[0] & 0xf0 {
 	case INFO:
 		return 1, data[0:1], nil
 	case SIZE:
