@@ -1,18 +1,5 @@
 function nString(value) {
-    var newValue = value;
-    if (value >= 1000) {
-        var suffixes = ["", "k", "M", "B", "T", "Q"];
-        var suffixNum = Math.floor( (""+value).length/3 );
-        var shortValue = '';
-        for (var precision = 2; precision >= 1; precision--) {
-            shortValue = parseFloat( (suffixNum != 0 ? (value / Math.pow(1000,suffixNum) ) : value).toPrecision(precision));
-            var dotLessShortValue = (shortValue + '').replace(/[^a-zA-Z 0-9]+/g,'');
-            if (dotLessShortValue.length <= 2) { break; }
-        }
-        if (shortValue % 1 != 0)  shortValue = shortValue.toFixed(1);
-        newValue = shortValue+suffixes[suffixNum];
-    }
-    return newValue;
+	return value
 }
 
 window.onload = function() {
@@ -20,6 +7,17 @@ window.onload = function() {
 
 	var client = document.getElementById("clientCounter");
 	var pixel = document.getElementById("pixelCounter");
+	var pixelAvg = document.getElementById("pixelCounterAvg");
+	var icon = document.getElementById("iconCounter");
+	var iconAvg = document.getElementById("iconCounterAvg");
+
+	var pixelQueue = [];
+	var iconQueue = [];
+
+	for (i = 0; i < 5; i++) {
+		pixelQueue.push(0)
+		iconQueue.push(0)
+	}
 
 	const socket = new WebSocket("/icoflut");
 	const stats = new WebSocket("/stats");
@@ -37,8 +35,17 @@ window.onload = function() {
 
 	stats.onmessage = function(event) {
 		const obj = JSON.parse(event.data);
-		client.innerText = "Currently there are " + nString(obj.c) + " clients connected."
-		pixel.innerText = "So far " + nString(obj.p) + " pixels of the main canvas have been modified, and " + nString(obj.i) + " of the icon"
+		client.innerText = nString(obj.c)
+
+		pixel.innerText = nString(obj.p)
+		pixelQueue.push(obj.p)
+		var old = pixelQueue.shift()
+		pixelAvg.innerText = nString(obj.p - old)
+
+		icon.innerText = nString(obj.i)
+		iconQueue.push(obj.i)
+		var old = iconQueue.shift()
+		iconAvg.innerText = nString(obj.i - old)
 	}
 
 	socket.onopen = function() {

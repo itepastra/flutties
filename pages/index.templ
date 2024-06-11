@@ -45,6 +45,38 @@ css content() {
  shadowColor)) };
 }
 
+templ statsTable() {
+	<table>
+		<thead>
+			<tr>
+				<th>Stat</th>
+				<th>Total</th>
+				<th>Last Second</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td>Pixels changed in main</td>
+				<td id="pixelCounter">Loading...</td>
+				<td id="pixelCounterAvg">Loading...</td>
+			</tr>
+			<tr>
+				<td>Pixels changed in icon</td>
+				<td id="iconCounter">Loading...</td>
+				<td id="iconCounterAvg">Loading...</td>
+			</tr>
+		</tbody>
+	</table>
+	<table>
+		<tbody>
+			<tr>
+				<td>Clients Connected</td>
+				<td id="clientCounter">Loading...</td>
+			</tr>
+		</tbody>
+	</table>
+}
+
 templ Index(port string) {
 	<!DOCTYPE html>
 	<html lang="nl">
@@ -57,8 +89,7 @@ templ Index(port string) {
 			<div class={ content() }>
 				<img class={ grid() } src="/grid"/>
 				<p class={ text() }>this pixelflut is accessible on port { port }</p>
-				<p class={ text() } id="clientCounter">Loading...</p>
-				<p class={ text() } id="pixelCounter">Loading...</p>
+				@statsTable()
 			</div>
 		</body>
 	</html>
