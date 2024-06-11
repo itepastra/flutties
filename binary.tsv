@@ -4,9 +4,9 @@
 01010011	S	reserved for SIZE
 
 INFO
-0000																		get info about all canvasses
+0001 0000															get info about all canvasses
 SIZE canvas
-0001 xxxx																get size of canvas x
+0010 xxxx																get size of canvas x
 PX   canvas x      y      color
 1000 xxxx   2 byte 2 byte								for getting pixel value
 1001 xxxx   2 byte 2 byte 1 byte				for grayscale

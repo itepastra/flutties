@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const GRID_AMOUNT = 16
+const GRID_AMOUNT = 2
 
 type Grid struct {
 	SizeX    uint16

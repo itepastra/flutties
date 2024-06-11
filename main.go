@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"image/jpeg"
@@ -29,6 +30,7 @@ const (
 	ICON_UPDATE_TIMER   = 25 * time.Millisecond
 	ICON_WIDTH          = 32
 	ICON_HEIGHT         = 32
+	STATS_UPDATE_TIMER  = 200 * time.Millisecond
 )
 
 var upgrader = websocket.Upgrader{}
@@ -42,19 +44,24 @@ var (
 	height                  = flag.Uint("height", 600, "the canvas height")
 )
 
-func byteComp(a []byte, b []byte) bool {
-	n := min(len(a), len(b))
-	for i := 0; i < n; i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
+var (
+	changedPixels  [types.GRID_AMOUNT]uint = [types.GRID_AMOUNT]uint{}
+	currentClients uint
+)
 
-func timeTillDestroy() time.Time {
-	return time.Now().Add(TIMEOUT_DELAY)
-}
+const (
+	INFO            byte = helpers.INFO
+	SIZE                 = helpers.SIZE
+	GET_PIXEL_VALUE      = helpers.GET_PIXEL_VALUE
+	SET_GRAYSCALE        = helpers.SET_GRAYSCALE
+	SET_HALF_RGBA        = helpers.SET_HALF_RGBA
+	SET_RGB              = helpers.SET_RGB
+	SET_RGBA             = helpers.SET_RGBA
+	SOUND_LOOP           = helpers.SOUND_LOOP
+	SOUND_ONCE           = helpers.SOUND_ONCE
+	TEXT_1               = helpers.TEXT_1
+	TEXT_2               = helpers.TEXT_2
+)
 
 func helpMsg() []byte {
 	return []byte(`This is pixelgo server
@@ -62,35 +69,89 @@ it implements the pixelflut protocol :3
 idk what to write here yet`)
 }
 
+func dropCR(data []byte) []byte {
+	if len(data) > 0 && data[len(data)-1] == '\r' {
+		return data[0 : len(data)-1]
+	}
+	return data
+}
+
+func ScanCommands(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+
+	switch data[0] >> 4 {
+	case INFO:
+		return 1, data[0:1], nil
+	case SIZE:
+		return 1, data[0:1], nil
+	case GET_PIXEL_VALUE:
+		return 5, data[0:5], nil
+	case SET_GRAYSCALE:
+		return 6, data[0:6], nil
+	case SET_HALF_RGBA:
+		return 7, data[0:7], nil
+	case SET_RGB:
+		return 8, data[0:8], nil
+	case SET_RGBA:
+		return 9, data[0:9], nil
+	case SOUND_LOOP:
+		return 5, data[0:5], nil
+	case SOUND_ONCE:
+		return 5, data[0:5], nil
+	case TEXT_1:
+		if i := bytes.IndexByte(data, '\n'); i >= 0 {
+			// We have a full newline-terminated line.
+			return i + 1, dropCR(data[0:i]), nil
+		}
+	case TEXT_2:
+		if i := bytes.IndexByte(data, '\n'); i >= 0 {
+			// We have a full newline-terminated line.
+			return i + 1, dropCR(data[0:i]), nil
+		}
+	}
+
+	// If we're at EOF, we have a final, non-terminated line. Return it.
+	if atEOF {
+		return len(data), dropCR(data), nil
+	}
+	// Request more data.
+	return 0, nil, nil
+}
+
 func handleConnection(conn net.Conn, grids [types.GRID_AMOUNT]*types.Grid) {
-	log.Printf("started connection %v", conn)
+	currentClients = currentClients + 1
 	defer func() {
-		log.Printf("stopped connection %v", conn)
+		currentClients = currentClients - 1
 		conn.Close()
 	}()
 	c := bufio.NewScanner(conn)
+	c.Split(ScanCommands)
 	for {
 		if !c.Scan() {
 			if c.Err() == nil {
-				// Was EOF
-				log.Printf("Got EOF from %v", conn)
 				return
 			}
 			log.Printf("Got error from scanner %e", c.Err())
 		}
 		var err error
 		cmd := c.Bytes()
-
-		err = helpers.TextCmd(cmd, grids, conn)
+		instruction := cmd[0] >> 4
+		if instruction == TEXT_1 || instruction == TEXT_2 {
+			err = helpers.TextCmd(cmd, grids, conn, &changedPixels)
+		} else {
+			err = helpers.BinCmd(cmd, grids, conn, &changedPixels)
+		}
 		if err != nil {
-			log.Printf("connection %v had an error %e while sending", conn, err)
+			log.Printf("connection %v had an error %e while sending, disconnecting", conn, err)
 			return
 		}
 	}
 
 }
 
-func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter, ch <-chan byte) {
+func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter, ch <-chan struct{}) {
 	multipartWriter := multipart.NewWriter(multiWriter)
 	multipartWriter.SetBoundary(BOUNDARY_STRING)
 	header := make(textproto.MIMEHeader)
@@ -104,9 +165,9 @@ func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter, ch <-chan byt
 	}
 }
 
-func frameTimer(grid *types.Grid, ch chan<- byte) {
+func frameTimer(grid *types.Grid, ch chan<- struct{}) {
 	for {
-		ch <- 0
+		ch <- struct{}{}
 		time.Sleep(JPEG_UPDATE_TIMER)
 		if time.Since(grid.Modified) > JPEG_UPDATE_TIMER*2 {
 			mt := grid.Modified
@@ -140,7 +201,7 @@ func main() {
 		}
 	}()
 
-	ch := make(chan byte)
+	ch := make(chan struct{})
 
 	go frameGenerator(&grid, multiWriter, ch)
 	go frameTimer(&grid, ch)
@@ -169,6 +230,22 @@ func main() {
 			}
 		}
 	})
+	http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
+		c, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("upgrade: %e", err)
+			return
+		}
+		defer c.Close()
+		for {
+			writer, err := c.NextWriter(websocket.TextMessage)
+			if err != nil {
+				return
+			}
+			writer.Write([]byte(fmt.Sprintf(`{"c":%d,"p":%d,"i":%d}`, currentClients, changedPixels[0], changedPixels[1])))
+			time.Sleep(STATS_UPDATE_TIMER)
+		}
+	})
 	http.HandleFunc("/icon", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/jpg")
 		w.Header().Set("Cache-Control", "no-store")
@@ -184,8 +261,8 @@ func main() {
 		w.Header().Set("Connection", "close")
 
 		multiWriter.Add(w)
-		ch <- 1
-		ch <- 1 // NOTE: firefox does not load the bottom rows correctly without this
+		ch <- struct{}{}
+		ch <- struct{}{} // NOTE: firefox does not load the bottom rows correctly without this
 		<-r.Context().Done()
 		multiWriter.Remove(w)
 	})
