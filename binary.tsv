@@ -1,0 +1,19 @@
+01001000	H	reserved for HELP
+01001001	I	reserved for IPX and ISIZE
+01010000	P	reserved for PX
+01010011	S	reserved for SIZE
+
+INFO
+0000																		get info about all canvasses
+SIZE canvas
+0001 xxxx																get size of canvas x
+PX   canvas x      y      color
+1000 xxxx   2 byte 2 byte								for getting pixel value
+1001 xxxx   2 byte 2 byte 1 byte				for grayscale
+1010 xxxx   2 byte 2 byte 2 byte				for rgba half-precision ??
+1011 xxxx   2 byte 2 byte 3 byte				for rgb
+1100 xxxx   2 byte 2 byte 4 byte				for rgba
+SPX  canvas sfx    note   volume
+1110 xxxx   1 byte 2 byte 1 byte				play sound loop
+1111 xxxx   1 byte 2 byte 1 byte				play sound once
+
