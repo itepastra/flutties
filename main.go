@@ -234,7 +234,7 @@ func main() {
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
-	log.Printf("pixelflut started listening at %s", *pixelflut_port)
+	log.Printf("pixelflut started listening at %s, the grid has size (%d, %d)", *pixelflut_port, *width, *height)
 	go func() {
 		for {
 			conn, err := ln.Accept()

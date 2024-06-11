@@ -9,9 +9,9 @@ var backgroundPrimary = "rgba(2,0,36,1)"
 var backgroundSecondary = "rgba(0,0,0,1)"
 
 css grid() {
-	max-width: 100%;
 	border-radius: 0.75rem;
-	margin: 0.75rem;
+	max-width: 80vw;
+	height: auto;
 }
 
 css body() {
@@ -31,6 +31,7 @@ css content() {
 	margin-inline: auto;
 	background: #DDDDDD;
 	margin-top: 3rem;
+	padding: 0.75rem;
 	border-radius: 1.5rem;
 	box-shadow: { templ.SafeCSSProperty(fmt.Sprintf(
  "0.2px 0.5px 0.5px hsl(%s / 0.45), 1.1px 2.4px 2.7px -0.5px hsl(%s / 0.42), 2.1px 4.6px 5.1px -0.9px hsl(%s / 0.4), 3.8px 8.2px 9.1px -1.4px hsl(%s / 0.37), 6.5px 14px 15.5px -1.9px hsl(%s / 0.34), 10.6px 23.1px 25.5px -2.4px hsl(%s / 0.31), 16.7px 36.3px 40.2px -2.8px hsl(%s / 0.29), 25.2px 54.7px 60.5px -3.3px hsl(%s / 0.26)", 
@@ -54,7 +55,7 @@ templ Index(port string) {
 		</head>
 		<body class={ body() }>
 			<div class={ content() }>
-				<image class={ grid() } src="/grid"></image>
+				<img class={ grid() } src="/grid"/>
 				<p class={ text() }>this pixelflut is accessible on port { port }</p>
 			</div>
 		</body>

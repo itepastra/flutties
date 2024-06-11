@@ -1,0 +1,10 @@
+<!doctype html><html lang=\"nl\"><head><title>Pixelflut</title><link id=\"favicon\" rel=\"icon\" href=\"/icon\"><script src=\"/icoflut.js\"></script></head>
+<body class=\"
+\">
+<div class=\"
+\">
+<img class=\"
+\" src=\"/grid\">
+<p class=\"
+\">this pixelflut is accessible on port 
+</p></div></body></html>
