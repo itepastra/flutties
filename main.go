@@ -31,7 +31,7 @@ const (
 	ICON_HEIGHT         = 32
 )
 
-var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+var upgrader = websocket.Upgrader{}
 var (
 	cpuprofile              = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile              = flag.String("memprofile", "", "write memory profile to `file`")
