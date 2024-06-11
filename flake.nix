@@ -3,9 +3,21 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    templ = {
+      url = "github:a-h/templ";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    gitignore = {
+      url = "github:hercules-ci/gitignore.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    gomod2nix = {
+      url = "github:nix-community/gomod2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, gitignore, gomod2nix, templ, ... }:
     let
       allSystems = [
         "x86_64-linux" # 64-bit Intel/AMD Linux
@@ -19,29 +31,37 @@
       });
     in
     {
-      packages = forAllSystems ({ system, pkgs, ... }:
-        rec {
-          default = flutties;
 
-          flutties = pkgs.stdenv.mkDerivation {
-            name = "flutties";
-            src = ./.;
-            pwd = ./.;
-            buildInputs = [ pkgs.templ pkgs.go ];
-            buildPhase = ''
-              export HOME=$(pwd)
-              templ generate
-              go build
-            '';
-            installPhase = ''
-              mkdir -p $out/bin
-              mv flutties $out/bin
-            '';
-          };
-        });
+      packages = forAllSystems
+        ({ system, pkgs, ... }:
+          let
+            buildGoApplication = gomod2nix.legacyPackages.${system}.buildGoApplication;
+          in
+          rec {
+            default = flutties;
+
+            flutties = buildGoApplication
+              {
+                name = "flutties";
+                src = gitignore.lib.gitignoreSource ./.;
+                go = pkgs.go;
+                pwd = ./.;
+                CGO_ENABLED = 0;
+                flags = [ "-trimpath" ];
+                ldflags = [
+                  "-s"
+                  "-w"
+                  "-extldflags -static"
+                ];
+              };
+          });
 
       # `nix develop` provides a shell containing development tools.
       devShell = forAllSystems ({ system, pkgs }:
+        let
+          templPkg = templ.packages.${system}.templ;
+          gomod2nixPkg = gomod2nix.legacyPackages.${system}.gomod2nix;
+        in
         pkgs.mkShell {
           buildInputs = with pkgs; [
             (golangci-lint.override { buildGoModule = buildGo122Module; })
@@ -51,7 +71,8 @@
             goreleaser
             gotestsum
             ko # Used to build Docker images.
-            templ
+            templPkg
+            gomod2nixPkg
           ];
         });
 

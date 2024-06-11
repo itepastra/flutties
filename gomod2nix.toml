@@ -1,0 +1,12 @@
+schema = 3
+
+[mod]
+  [mod."github.com/a-h/templ"]
+    version = "v0.2.707"
+    hash = "sha256-UoM2qj8E7C4NBAMhS/2jrOw0Dj/gnsyZRL4NpRCWaMo="
+  [mod."github.com/gorilla/websocket"]
+    version = "v1.5.2"
+    hash = "sha256-dAKmnxHWkqdyqhkx+xo7kD0dDd26f/V5I4RnGUI0BHc="
+  [mod."golang.org/x/net"]
+    version = "v0.24.0"
+    hash = "sha256-w1c21ljta5wNIyel9CSIn/crPzwOCRofNKhqmfs4aEQ="
