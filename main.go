@@ -41,7 +41,7 @@ var (
 	cpuprofile              = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile              = flag.String("memprofile", "", "write memory profile to `file`")
 	pixelflut_port          = flag.String("pixelflut", ":7791", "the port where the pixelflut is accessible internally")
-	pixelflut_port_external = flag.String("pixelflut_ext", ":55282", "the port where the pixelflut is accessible externally, used for the webpage")
+	pixelflut_port_external = flag.String("pixelflut_ext", "55282", "the port where the pixelflut is accessible externally, used for the webpage")
 	web_port                = flag.String("web", ":7792", "the address the website should listen on")
 	width                   = flag.Int("width", 800, "the canvas width")
 	height                  = flag.Int("height", 600, "the canvas height")
