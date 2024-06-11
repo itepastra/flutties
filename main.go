@@ -30,7 +30,8 @@ const (
 	BOUNDARY_STRING     = "thisisaboundary"
 	BOUNDARY_STRING_ICO = "thisisicoboundary"
 	JPEG_UPDATE_TIMER   = 25 * time.Millisecond
-	ICON_REFRESH_TIME   = 25 * time.Millisecond
+	JPEG_PING_TIMER     = 25 * time.Second
+	ICON_UPDATE_TIMER   = 25 * time.Millisecond
 	ICON_WIDTH          = 32
 	ICON_HEIGHT         = 32
 )
@@ -224,7 +225,7 @@ func frameTimer(grid *types.Grid, ch chan<- byte) {
 		time.Sleep(JPEG_UPDATE_TIMER)
 		if time.Since(grid.Modified) > JPEG_UPDATE_TIMER*2 {
 			mt := grid.Modified
-			for mt == grid.Modified && time.Since(grid.Modified) < time.Second*2 {
+			for mt == grid.Modified && time.Since(grid.Modified) < JPEG_PING_TIMER {
 				time.Sleep(JPEG_UPDATE_TIMER)
 			}
 			grid.Modified = time.Now()
@@ -274,11 +275,11 @@ func main() {
 				return
 			}
 			jpeg.Encode(writer, &icoGrid, &jpeg.Options{Quality: 90})
-			time.Sleep(ICON_REFRESH_TIME)
-			if time.Since(icoGrid.Modified) > ICON_REFRESH_TIME {
+			time.Sleep(ICON_UPDATE_TIMER)
+			if time.Since(icoGrid.Modified) > ICON_UPDATE_TIMER {
 				mt := icoGrid.Modified
 				for mt == icoGrid.Modified {
-					time.Sleep(ICON_REFRESH_TIME)
+					time.Sleep(ICON_UPDATE_TIMER)
 				}
 			}
 		}
@@ -299,6 +300,7 @@ func main() {
 
 		multiWriter.Add(w)
 		ch <- 1
+		ch <- 1 // NOTE: firefox does not load the bottom rows correctly without this
 		<-r.Context().Done()
 		multiWriter.Remove(w)
 	})
