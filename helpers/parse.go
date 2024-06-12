@@ -114,8 +114,8 @@ func BinCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer, 
 			byte(grids[canvasId].SizeY),
 		})
 	case GET_PIXEL_VALUE:
-		x := uint16(cmd[2]) | uint16(cmd[1])<<8
-		y := uint16(cmd[4]) | uint16(cmd[3])<<8
+		x := uint16(cmd[1])<<8 | uint16(cmd[2])
+		y := uint16(cmd[3])<<8 | uint16(cmd[4])
 		color, err := grids[canvasId].Get(x, y)
 		if err != nil {
 			return err
@@ -131,13 +131,13 @@ func BinCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer, 
 			byte(color >> 8),
 		})
 	case SET_GRAYSCALE:
-		x := uint16(cmd[2]) | uint16(cmd[1])<<8
-		y := uint16(cmd[4]) | uint16(cmd[3])<<8
+		x := uint16(cmd[1])<<8 | uint16(cmd[2])
+		y := uint16(cmd[3])<<8 | uint16(cmd[4])
 		err = grids[canvasId].Set(x, y, uint32(cmd[5])<<24|uint32(cmd[5])<<16|uint32(cmd[5])<<8|0xff)
 		changedPixels[canvasId]++
 	case SET_HALF_RGBA:
-		x := uint16(cmd[2]) | uint16(cmd[1])<<8
-		y := uint16(cmd[4]) | uint16(cmd[3])<<8
+		x := uint16(cmd[1])<<8 | uint16(cmd[2])
+		y := uint16(cmd[3])<<8 | uint16(cmd[4])
 		r := (cmd[5] & 0xf0) | (cmd[5]&0xf0)>>4
 		g := (cmd[5]&0x0f)<<4 | (cmd[5] & 0x0f)
 		b := (cmd[6] & 0xf0) | (cmd[6]&0xf0)>>4
