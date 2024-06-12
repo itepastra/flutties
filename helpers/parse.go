@@ -2,10 +2,10 @@ package helpers
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"image/color"
 	"io"
 	"strconv"
 
@@ -44,44 +44,37 @@ var (
 	ICON_GRID_INDEX       = 1
 )
 
-func parseHex(part string) (color.Color, error) {
+func parseHex(part string) (uint32, error) {
 	data, err := hex.DecodeString(part)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	if len(data) == 1 {
-		return color.RGBA{
-			R: data[0],
-			G: data[0],
-			B: data[0],
-			A: 255,
-		}, nil
+		return uint32(data[0])<<24 |
+			uint32(data[0])<<16 |
+			uint32(data[0])<<8 | 0xff, nil
 	}
 	if len(data) == 3 {
-		return color.RGBA{
-			R: data[0],
-			G: data[1],
-			B: data[2],
-			A: 255,
-		}, nil
+		return uint32(data[0])<<24 |
+			uint32(data[1])<<16 |
+			uint32(data[2])<<8 | 0xff, nil
 	}
 	if len(data) == 4 {
-		return color.RGBA{
-			R: data[0],
-			G: data[1],
-			B: data[2],
-			A: data[3],
-		}, nil
+		return uint32(data[0])<<24 |
+			uint32(data[1])<<16 |
+			uint32(data[2])<<8 |
+			uint32(data[3]), nil
 	}
-	return nil, errors.New("incorrect number of bytes")
+	return 0, errors.New("incorrect number of bytes")
 }
 
-func parsePx(command []byte) (x uint16, y uint16, color color.Color, err error) {
+func parsePx(command []byte) (x uint16, y uint16, found bool, color uint32, err error) {
 	str := command
 	trimmed := bytes.Trim(str, "\n \x00")
 	parts := bytes.Split(trimmed, []byte{' '})
 	var xu uint64
 	var yu uint64
+	found = false
 	for i, p := range parts {
 		switch i {
 		case 0:
@@ -98,6 +91,7 @@ func parsePx(command []byte) (x uint16, y uint16, color color.Color, err error) 
 			}
 		case 2:
 			color, err = parseHex(string(p))
+			found = true
 			if err != nil {
 				return
 			}
@@ -123,7 +117,6 @@ func BinCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer, 
 		x := uint16(cmd[2]) | uint16(cmd[1])<<8
 		y := uint16(cmd[4]) | uint16(cmd[3])<<8
 		color, err := grids[canvasId].Get(x, y)
-		r, g, b, _ := color.RGBA()
 		if err != nil {
 			return err
 		}
@@ -133,15 +126,14 @@ func BinCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer, 
 			cmd[2],
 			cmd[3],
 			cmd[4],
-			byte(r),
-			byte(g),
-			byte(b),
+			byte(color >> 24),
+			byte(color >> 16),
+			byte(color >> 8),
 		})
 	case SET_GRAYSCALE:
 		x := uint16(cmd[2]) | uint16(cmd[1])<<8
 		y := uint16(cmd[4]) | uint16(cmd[3])<<8
-		g := cmd[5]
-		err = grids[canvasId].Set(x, y, color.RGBA{R: g, G: g, B: g, A: 255})
+		err = grids[canvasId].Set(x, y, uint32(cmd[5])<<24|uint32(cmd[5])<<16|uint32(cmd[5])<<8|0xff)
 		changedPixels[canvasId]++
 	case SET_HALF_RGBA:
 		x := uint16(cmd[2]) | uint16(cmd[1])<<8
@@ -150,24 +142,17 @@ func BinCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer, 
 		g := (cmd[5]&0x0f)<<4 | (cmd[5] & 0x0f)
 		b := (cmd[6] & 0xf0) | (cmd[6]&0xf0)>>4
 		a := (cmd[6]&0x0f)<<4 | (cmd[6] & 0x0f)
-		err = grids[canvasId].Set(x, y, color.RGBA{R: r, G: g, B: b, A: a})
+		err = grids[canvasId].Set(x, y, binary.BigEndian.Uint32([]byte{r, g, b, a}))
 		changedPixels[canvasId]++
 	case SET_RGB:
-		x := uint16(cmd[2]) | uint16(cmd[1])<<8
-		y := uint16(cmd[4]) | uint16(cmd[3])<<8
-		r := cmd[5]
-		g := cmd[6]
-		b := cmd[7]
-		err = grids[canvasId].Set(x, y, color.RGBA{R: r, G: g, B: b, A: 255})
+		x := uint16(cmd[1])<<8 | uint16(cmd[2])
+		y := uint16(cmd[3])<<8 | uint16(cmd[4])
+		err = grids[canvasId].Set(x, y, uint32(cmd[5])<<24|uint32(cmd[6])<<16|uint32(cmd[7])<<8|0xff)
 		changedPixels[canvasId]++
 	case SET_RGBA:
-		x := uint16(cmd[2]) | uint16(cmd[1])<<8
-		y := uint16(cmd[4]) | uint16(cmd[3])<<8
-		r := cmd[5]
-		g := cmd[6]
-		b := cmd[7]
-		a := cmd[8]
-		err = grids[canvasId].Set(x, y, color.RGBA{R: r, G: g, B: b, A: a})
+		x := uint16(cmd[1])<<8 | uint16(cmd[2])
+		y := uint16(cmd[3])<<8 | uint16(cmd[4])
+		err = grids[canvasId].Set(x, y, uint32(cmd[5])<<24|uint32(cmd[6])<<16|uint32(cmd[7])<<8|uint32(0xff))
 		changedPixels[canvasId]++
 	}
 	return
@@ -181,11 +166,11 @@ func TextCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer,
 	} else if bytes.Compare(cmd, SIZE_ICON_COMMAND) == 0 {
 		_, err = writer.Write([]byte(fmt.Sprintf("SIZE %d %d\n", grids[1].SizeX, grids[1].SizeY)))
 	} else if rest, found := bytes.CutPrefix(cmd, PX_COMMAND_START); found {
-		x, y, color, err := parsePx(rest)
+		x, y, found, color, err := parsePx(rest)
 		if err != nil {
 			return err
 		}
-		if color == nil { // a request for the current color
+		if !found { // a request for the current color
 			c, err := grids[MAIN_GRID_INDEX].Get(x, y)
 			if err != nil {
 				return err
@@ -196,11 +181,11 @@ func TextCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer,
 			changedPixels[0]++
 		}
 	} else if rest, found := bytes.CutPrefix(cmd, PX_ICON_COMMAND_START); found {
-		x, y, color, err := parsePx(rest)
+		x, y, found, color, err := parsePx(rest)
 		if err != nil {
 			return err
 		}
-		if color == nil { // a request for the current color
+		if !found { // a request for the current color
 			c, err := grids[ICON_GRID_INDEX].Get(x, y)
 			if err != nil {
 				return err

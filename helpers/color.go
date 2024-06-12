@@ -2,11 +2,9 @@ package helpers
 
 import (
 	"encoding/hex"
-	"image/color"
 )
 
-func PxToHex(color color.Color) string {
-	r, g, b, _ := color.RGBA()
-	cbytes := []byte{byte(r), byte(g), byte(b)}
+func PxToHex(color uint32) string {
+	cbytes := []byte{byte(color >> 24), byte(color >> 16), byte(color >> 8)}
 	return hex.EncodeToString(cbytes)
 }
