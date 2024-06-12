@@ -44,7 +44,7 @@ var (
 )
 
 var (
-	changedPixels  [types.GRID_AMOUNT]uint = [types.GRID_AMOUNT]uint{}
+	changedPixels  [types.GRID_AMOUNT]uint64 = [types.GRID_AMOUNT]uint64{}
 	currentClients uint
 )
 

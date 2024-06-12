@@ -11,16 +11,16 @@ import (
 const GRID_AMOUNT = 2
 
 type Grid struct {
-	SizeX    uint16
-	SizeY    uint16
+	SizeX    int
+	SizeY    int
 	Cells    []uint32
 	Modified time.Time
 }
 
 func NewGrid(sizeX uint16, sizeY uint16, defaultValue uint32) Grid {
 	grid := Grid{
-		SizeX:    sizeX,
-		SizeY:    sizeY,
+		SizeX:    int(sizeX),
+		SizeY:    int(sizeY),
 		Cells:    make([]uint32, (uint32(sizeX) * uint32(sizeY))),
 		Modified: time.Now(),
 	}
@@ -35,8 +35,8 @@ func randomColor() uint32 {
 }
 func NewGridRandom(sizeX uint16, sizeY uint16) Grid {
 	grid := Grid{
-		SizeX:    sizeX,
-		SizeY:    sizeY,
+		SizeX:    int(sizeX),
+		SizeY:    int(sizeY),
 		Cells:    make([]uint32, (uint32(sizeX) * uint32(sizeY))),
 		Modified: time.Now(),
 	}
@@ -66,8 +66,8 @@ func blend(src uint32, dst uint32) uint32 {
 		0xff
 }
 
-func (g *Grid) Set(x uint16, y uint16, c uint32) error {
-	idx := int(y)*int(g.SizeX) + int(x)
+func (g *Grid) Set(xy uint32, c uint32) error {
+	idx := int(xy&0xffff)*int(g.SizeX) + int(xy>>16)
 	if idx >= len(g.Cells) {
 		return errors.New("Out of bounds")
 	}
