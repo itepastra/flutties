@@ -77,6 +77,14 @@ func dropCR(data []byte) []byte {
 	return data
 }
 
+func CheckMinLength(data []byte, targetLen int) (advance int, token []byte, err error) {
+	if len(data) < targetLen {
+		return 0, nil, nil
+	} else {
+		return targetLen, data[:targetLen], nil
+	}
+}
+
 func ScanCommands(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil
@@ -84,23 +92,23 @@ func ScanCommands(data []byte, atEOF bool) (advance int, token []byte, err error
 
 	switch data[0] & 0xf0 {
 	case INFO:
-		return 1, data[0:1], nil
+		return CheckMinLength(data, 1)
 	case SIZE:
-		return 1, data[0:1], nil
+		return CheckMinLength(data, 1)
 	case GET_PIXEL_VALUE:
-		return 5, data[0:5], nil
+		return CheckMinLength(data, 5)
 	case SET_GRAYSCALE:
-		return 6, data[0:6], nil
+		return CheckMinLength(data, 6)
 	case SET_HALF_RGBA:
-		return 7, data[0:7], nil
+		return CheckMinLength(data, 7)
 	case SET_RGB:
-		return 8, data[0:8], nil
+		return CheckMinLength(data, 8)
 	case SET_RGBA:
-		return 9, data[0:9], nil
+		return CheckMinLength(data, 9)
 	case SOUND_LOOP:
-		return 5, data[0:5], nil
+		return CheckMinLength(data, 5)
 	case SOUND_ONCE:
-		return 5, data[0:5], nil
+		return CheckMinLength(data, 5)
 	case H & 0xf0: // same as I
 	case P & 0xf0: // same as S
 		if i := bytes.IndexByte(data, '\n'); i >= 0 {
@@ -111,7 +119,7 @@ func ScanCommands(data []byte, atEOF bool) (advance int, token []byte, err error
 
 	// If we're at EOF, we have a final, non-terminated line. Return it.
 	if atEOF {
-		return len(data), dropCR(data), nil
+		return 0, nil, nil
 	}
 	// Request more data.
 	return 0, nil, nil
