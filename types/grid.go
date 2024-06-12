@@ -11,17 +11,19 @@ import (
 const GRID_AMOUNT = 2
 
 type Grid struct {
-	SizeX    uint16
-	SizeY    uint16
-	Cells    []color.Color
+	SizeX    int
+	SizeY    int
+	length   int
+	Cells    []uint32
 	Modified time.Time
 }
 
-func NewGrid(sizeX uint16, sizeY uint16, defaultValue color.Color) Grid {
+func NewGrid(sizeX uint16, sizeY uint16, defaultValue uint32) Grid {
 	grid := Grid{
-		SizeX:    sizeX,
-		SizeY:    sizeY,
-		Cells:    make([]color.Color, (uint32(sizeX) * uint32(sizeY))),
+		SizeX:    int(sizeX),
+		SizeY:    int(sizeY),
+		length:   int(sizeX) * int(sizeY),
+		Cells:    make([]uint32, (uint32(sizeX) * uint32(sizeY))),
 		Modified: time.Now(),
 	}
 	for i := range grid.Cells {
@@ -30,20 +32,15 @@ func NewGrid(sizeX uint16, sizeY uint16, defaultValue color.Color) Grid {
 	return grid
 }
 
-func randomColor() color.Color {
-	cint := rand.Uint32()
-	return color.RGBA{
-		R: uint8(cint >> 24),
-		G: uint8(cint >> 16),
-		B: uint8(cint >> 8),
-		A: 255,
-	}
+func randomColor() uint32 {
+	return rand.Uint32()
 }
 func NewGridRandom(sizeX uint16, sizeY uint16) Grid {
 	grid := Grid{
-		SizeX:    sizeX,
-		SizeY:    sizeY,
-		Cells:    make([]color.Color, (uint32(sizeX) * uint32(sizeY))),
+		SizeX:    int(sizeX),
+		SizeY:    int(sizeY),
+		length:   int(sizeX) * int(sizeY),
+		Cells:    make([]uint32, (uint32(sizeX) * uint32(sizeY))),
 		Modified: time.Now(),
 	}
 	for i := range grid.Cells {
@@ -52,29 +49,29 @@ func NewGridRandom(sizeX uint16, sizeY uint16) Grid {
 	return grid
 }
 
-func (g *Grid) Get(x uint16, y uint16) (color.Color, error) {
+func (g *Grid) Get(x uint16, y uint16) (uint32, error) {
 	idx := int(y)*int(g.SizeX) + int(x)
 	if idx >= len(g.Cells) {
-		return nil, errors.New("Out of bounds")
+		return 0, errors.New("Out of bounds")
 	}
 	return g.Cells[idx], nil
 }
 
-func blend(originalColor color.Color, newColor color.Color) color.Color {
-	or, og, ob, _ := originalColor.RGBA()
-	nr, ng, nb, a := newColor.RGBA()
-	s := 255 - a
-	return color.RGBA{
-		R: uint8((or*s + nr*a) / 0xff),
-		G: uint8((og*s + ng*a) / 0xff),
-		B: uint8((ob*s + nb*a) / 0xff),
-		A: 255,
-	}
+func blend(src uint32, dst uint32) uint32 {
+	t := dst & 0xff
+	s := 255 - t
+	return (((((src>>24)&0xff)*s +
+		((dst>>24)&0xff)*t) << 16) & 0xff000000) |
+		(((((src>>16)&0xff)*s +
+			((dst>>16)&0xff)*t) << 8) & 0xffff0000) |
+		((((src>>8)&0xff)*s +
+			((dst>>8)&0xff)*t) & 0xffffff00) |
+		0xff
 }
 
-func (g *Grid) Set(x uint16, y uint16, c color.Color) error {
-	idx := int(y)*int(g.SizeX) + int(x)
-	if idx >= len(g.Cells) {
+func (g *Grid) Set(xy uint32, c uint32) error {
+	idx := int(xy&0xffff)*int(g.SizeX) + int(xy>>16)
+	if idx >= g.length {
 		return errors.New("Out of bounds")
 	}
 	g.Cells[idx] = blend(g.Cells[idx], c)
@@ -91,6 +88,6 @@ func (g *Grid) Bounds() image.Rectangle {
 }
 
 func (g *Grid) At(x, y int) color.Color {
-	color, _ := g.Get(uint16(x), uint16(y))
-	return color
+	c, _ := g.Get(uint16(x), uint16(y))
+	return color.RGBA{R: byte(c >> 24), G: byte(c >> 16), B: byte(c >> 8), A: byte(c)}
 }

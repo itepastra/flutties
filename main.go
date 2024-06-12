@@ -12,9 +12,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"net/textproto"
-	"os"
-	"runtime"
-	"runtime/pprof"
 	"time"
 
 	"github.com/a-h/templ"
@@ -39,8 +36,6 @@ const (
 
 var upgrader = websocket.Upgrader{}
 var (
-	cpuprofile              = flag.String("cpuprofile", "", "write cpu profile to `file`")
-	memprofile              = flag.String("memprofile", "", "write memory profile to `file`")
 	pixelflut_port          = flag.String("pixelflut", ":7791", "the port where the pixelflut is accessible internally")
 	pixelflut_port_external = flag.String("pixelflut_ext", "55282", "the port where the pixelflut is accessible externally, used for the webpage")
 	web_port                = flag.String("web", ":7792", "the address the website should listen on")
@@ -49,7 +44,7 @@ var (
 )
 
 var (
-	changedPixels  [types.GRID_AMOUNT]uint = [types.GRID_AMOUNT]uint{}
+	changedPixels  [types.GRID_AMOUNT]uint64 = [types.GRID_AMOUNT]uint64{}
 	currentClients uint
 )
 
@@ -183,32 +178,6 @@ func frameTimer(grid *types.Grid, ch chan<- struct{}) {
 
 func main() {
 	flag.Parse()
-
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
-		if err != nil {
-			log.Fatal("could not create CPU profile: ", err)
-		}
-		defer f.Close() // error handling omitted for example
-		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatal("could not start CPU profile: ", err)
-		}
-		defer pprof.StopCPUProfile()
-	}
-
-	// ... rest of the program ...
-
-	if *memprofile != "" {
-		f, err := os.Create(*memprofile)
-		if err != nil {
-			log.Fatal("could not create memory profile: ", err)
-		}
-		defer f.Close() // error handling omitted for example
-		runtime.GC()    // get up-to-date statistics
-		if err := pprof.WriteHeapProfile(f); err != nil {
-			log.Fatal("could not write memory profile: ", err)
-		}
-	}
 
 	multiWriter := multi.NewMapWriter()
 
