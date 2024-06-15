@@ -89,6 +89,9 @@ func ScanCommands(data []byte, atEOF bool) (advance int, token []byte, err error
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil
 	}
+	if data[0]&0xf0 == SET_RGB {
+		return CheckMinLength(data, 8)
+	}
 
 	switch data[0] & 0xf0 {
 	case INFO:
@@ -101,8 +104,6 @@ func ScanCommands(data []byte, atEOF bool) (advance int, token []byte, err error
 		return CheckMinLength(data, 6)
 	case SET_HALF_RGBA:
 		return CheckMinLength(data, 7)
-	case SET_RGB:
-		return CheckMinLength(data, 8)
 	case SET_RGBA:
 		return CheckMinLength(data, 9)
 	case SOUND_LOOP:
@@ -191,6 +192,8 @@ func main() {
 
 	grid := types.NewGridRandom(uint16(*width), uint16(*height))
 	icoGrid := types.NewGridRandom(ICON_WIDTH, ICON_HEIGHT)
+
+	// ln, err := net.ListenUDP("udp", pixelflut_port)
 
 	ln, err := net.Listen("tcp", *pixelflut_port)
 	if err != nil {
