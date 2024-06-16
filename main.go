@@ -193,8 +193,6 @@ func main() {
 	grid := types.NewGridRandom(uint16(*width), uint16(*height))
 	icoGrid := types.NewGridRandom(ICON_WIDTH, ICON_HEIGHT)
 
-	// ln, err := net.ListenUDP("udp", pixelflut_port)
-
 	ln, err := net.Listen("tcp", *pixelflut_port)
 	if err != nil {
 		log.Fatalf(err.Error())
