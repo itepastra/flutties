@@ -11,7 +11,9 @@ var backgroundSecondary = "rgba(0,0,0,1)"
 css grid() {
 	border-radius: 0.75rem;
 	max-width: 80vw;
+	min-width: 60vw;
 	height: auto;
+	image-rendering: pixelated;
 }
 
 css body() {
@@ -87,7 +89,25 @@ templ Index(port string) {
 		</head>
 		<body class={ body() }>
 			<div class={ content() }>
-				<img class={ grid() } src="/grid"/>
+				<img class={ grid() } id="flutcanvas" src="/grid"/>
+				<script>
+				document.getElementById("flutcanvas").onclick = async function(e) {
+					let ratioX = e.target.naturalWidth / e.target.offsetWidth;
+					let ratioY = e.target.naturalHeight / e.target.offsetHeight;
+
+					let domX = e.x + window.pageXOffset - e.target.offsetLeft;
+					let domY = e.y + window.pageYOffset - e.target.offsetTop;
+
+					let imgX = Math.floor(domX * ratioX);
+					let imgY = Math.floor(domY * ratioY);
+
+					let color = document.getElementById("colorpicker").value
+
+					console.log(imgX, imgY, color);
+					const resp = await fetch(`color/${imgX}/${imgY}/${color.substring(1)}`, {method: "POST",});
+				};
+				</script>
+				<input type="color" id="colorpicker"></input>
 				<p class={ text() }>this pixelflut is accessible on port { port }</p>
 				@statsTable()
 			</div>

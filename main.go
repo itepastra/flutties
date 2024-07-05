@@ -12,6 +12,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"net/textproto"
+	"strconv"
 	"time"
 
 	"github.com/a-h/templ"
@@ -272,6 +273,36 @@ func main() {
 		ch <- struct{}{} // NOTE: firefox does not load the bottom rows correctly without this
 		<-r.Context().Done()
 		multiWriter.Remove(w)
+	})
+
+	http.HandleFunc("/color/{x}/{y}/{color}", func(w http.ResponseWriter, r *http.Request) {
+		log.Println("aaaa")
+		xStr := r.PathValue("x")
+		x, err := strconv.Atoi(xStr)
+		if err != nil {
+			log.Printf("%s was not a valid int", xStr)
+			return
+		}
+		yStr := r.PathValue("y")
+		y, err := strconv.Atoi(yStr)
+		if err != nil {
+			log.Printf("%s was not a valid int", yStr)
+			return
+		}
+		colorStr := r.PathValue("color")
+		color, err := strconv.ParseInt(colorStr, 16, 24)
+		if err != nil {
+			log.Printf("%s was not a valid int", colorStr)
+			return
+		}
+		color = color<<8 | 0xff
+		log.Printf("setting (%d, %d) to color %d", x, y, color)
+
+		err = grid.Set(uint32(x)<<16|uint32(y), uint32(color))
+		if err != nil {
+			log.Println("oop")
+			return
+		}
 	})
 
 	log.Fatal(http.ListenAndServe(*web_port, nil))
