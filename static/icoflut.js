@@ -1,5 +1,6 @@
+const formatter = Intl.NumberFormat('en', { notation: 'compact' });
 function nString(value) {
-	return value
+	return formatter.format(value)
 }
 
 window.onload = function() {
