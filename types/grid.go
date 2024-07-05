@@ -33,8 +33,9 @@ func NewGrid(sizeX uint16, sizeY uint16, defaultValue uint32) Grid {
 }
 
 func randomColor() uint32 {
-	return rand.Uint32()
+	return rand.Uint32() | 0xff
 }
+
 func NewGridRandom(sizeX uint16, sizeY uint16) Grid {
 	grid := Grid{
 		SizeX:    int(sizeX),
