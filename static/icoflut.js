@@ -3,6 +3,49 @@ function nString(value) {
 	return formatter.format(value)
 }
 
+var isDrawing = false;
+
+async function StartDrawing(e) {
+	isDrawing = true;
+	let ratioX = e.target.naturalWidth / e.target.offsetWidth;
+	let ratioY = e.target.naturalHeight / e.target.offsetHeight;
+
+	let domX = e.x + window.scrollX - e.target.offsetLeft;
+	let domY = e.y + window.scrollY - e.target.offsetTop;
+
+	let imgX = Math.floor(domX * ratioX);
+	let imgY = Math.floor(domY * ratioY);
+
+	let color = document.querySelector("input[name=color]:checked").value;
+	let size = document.querySelector("input[name=size]:checked").value;
+
+	console.log(imgX, imgY, color);
+	const resp = await fetch(`color/${imgX}/${imgY}/${color.substring(1)}/${size}`, {method: "POST",});
+
+}
+
+function StopDrawing() {
+	isDrawing = false;
+}
+
+onpointermove = async function (e) {
+	if (!isDrawing) { return; }
+	let ratioX = e.target.naturalWidth / e.target.offsetWidth;
+	let ratioY = e.target.naturalHeight / e.target.offsetHeight;
+
+	let domX = e.x + window.scrollX - e.target.offsetLeft;
+	let domY = e.y + window.scrollY - e.target.offsetTop;
+
+	let imgX = Math.floor(domX * ratioX);
+	let imgY = Math.floor(domY * ratioY);
+
+	let color = document.getElementById("colorpicker").value
+	let size = 500;
+
+	console.log(imgX, imgY, color);
+	const resp = await fetch(`color/${imgX}/${imgY}/${color.substring(1)}/${size}`, {method: "POST",});
+};
+
 window.onload = function() {
 	var favicon = document.getElementById("favicon");
 
