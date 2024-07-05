@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"image/jpeg"
+	"image/png"
 	"log"
 	"mime/multipart"
 	"net"
@@ -162,12 +163,13 @@ func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter, ch <-chan str
 	multipartWriter := multipart.NewWriter(multiWriter)
 	multipartWriter.SetBoundary(BOUNDARY_STRING)
 	header := make(textproto.MIMEHeader)
-	header.Add("Content-Type", "image/jpeg")
+	header.Add("Content-Type", "image/png")
 	for {
 		select {
 		case <-ch:
 			writer, _ := multipartWriter.CreatePart(header)
-			jpeg.Encode(writer, grid, &jpeg.Options{Quality: 75})
+			// jpeg.Encode(writer, grid, &jpeg.Options{Quality: 75})
+			png.Encode(writer, grid)
 		}
 	}
 }
@@ -255,10 +257,10 @@ func main() {
 		}
 	})
 	http.HandleFunc("/icon", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "image/jpg")
+		w.Header().Set("Content-Type", "image/png")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Connection", "close")
-		jpeg.Encode(w, &icoGrid, &jpeg.Options{Quality: 90})
+		png.Encode(w, &icoGrid)
 	})
 	http.HandleFunc("/grid", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(
