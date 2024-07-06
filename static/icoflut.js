@@ -19,9 +19,7 @@ async function StartDrawing(e) {
 	let color = document.querySelector("input[name=color]:checked").value;
 	let size = document.querySelector("input[name=size]:checked").value;
 
-	console.log(imgX, imgY, color);
-	const resp = await fetch(`color/${imgX}/${imgY}/${color.substring(1)}/${size}`, {method: "POST",});
-
+	fetch(`color/${imgX}/${imgY}/${color}/${size}`, {method: "POST",});
 }
 
 function StopDrawing() {
@@ -39,11 +37,10 @@ onpointermove = async function (e) {
 	let imgX = Math.floor(domX * ratioX);
 	let imgY = Math.floor(domY * ratioY);
 
-	let color = document.getElementById("colorpicker").value
-	let size = 500;
+	let color = document.querySelector("input[name=color]:checked").value;
+	let size = document.querySelector("input[name=size]:checked").value;
 
-	console.log(imgX, imgY, color);
-	const resp = await fetch(`color/${imgX}/${imgY}/${color.substring(1)}/${size}`, {method: "POST",});
+	fetch(`color/${imgX}/${imgY}/${color}/${size}`, {method: "POST",});
 };
 
 window.onload = function() {

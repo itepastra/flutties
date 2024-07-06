@@ -48,6 +48,42 @@ css content() {
  shadowColor)) };
 }
 
+css inputRow() {
+	width: 100%;
+}
+
+css radio() {
+	position: absolute;
+	opacity: 0;
+	cursor: pointer;
+}
+
+css check(color string) {
+	position: absolute;
+	top: 0;
+	left: 0;
+	height: 50px;
+	width: 50px;
+	background-color: {fmt.Sprintf("#%s", color)};
+	border: {fmt.Sprintf("3px solid #%s", color)};
+}
+
+css radioLabel() {
+	text-indent: -1000px;
+	overflow: hidden;
+	display: inline-block;
+	padding-left: 50px;
+	padding-bottom: 50px;
+	position: relative;
+	
+	cursor: pointer;
+	font-size: 22px;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
 templ statsTable() {
 	<table>
 		<thead>
@@ -80,6 +116,20 @@ templ statsTable() {
 	</table>
 }
 
+templ colorInput(color string, displayColor string) {
+	<label class={ radioLabel() }>
+		<input type="radio" name="color" class={ radio() } value={color}></input>
+		{displayColor}
+	</label>
+}
+
+templ sizeInput(size string) {
+	<label class={ radioLabel() }>
+		<input type="radio" name="size" value={ size } class={ radio() }></input>
+		{size}
+	</label>
+}
+
 templ Index(port string) {
 	<!DOCTYPE html>
 	<html lang="nl">
@@ -91,7 +141,23 @@ templ Index(port string) {
 		<body class={ body() }>
 			<div class={ content() }>
 				<img class={ grid() } onmousedown="StartDrawing(event)" onmouseup="StopDrawing()" src="/grid" draggable="false" />
-				<input type="color" id="colorpicker"></input>
+				<div class={ inputRow() }>
+					@colorInput("000000", "black")
+					@colorInput("ff0000", "red")
+					@colorInput("00ff00", "green")
+					@colorInput("0000ff", "blue")
+					@colorInput("ffffff", "white")
+				</div>
+				<div class={ inputRow() }>
+					@sizeInput("1")
+					@sizeInput("2")
+					@sizeInput("4")
+					@sizeInput("8")
+					@sizeInput("16")
+					@sizeInput("32")
+					@sizeInput("64")
+				</div>
+
 				<p class={ text() }>this pixelflut is accessible on port { port }</p>
 				@statsTable()
 			</div>
