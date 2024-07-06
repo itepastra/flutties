@@ -73,6 +73,7 @@
             ko # Used to build Docker images.
             templPkg
             gomod2nixPkg
+						wgo
           ];
         });
 
