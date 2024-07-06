@@ -14,7 +14,7 @@ css grid() {
 	min-width: 60vw;
 	height: auto;
 	image-rendering: pixelated;
-    user-select: none;
+	user-select: none;
 }
 
 css body() {
@@ -64,20 +64,20 @@ css check(color string) {
 	left: 0;
 	height: 50px;
 	width: 50px;
-	background-color: {fmt.Sprintf("#%s", color)};
-	border: {fmt.Sprintf("3px solid #%s", color)};
+	background-color: { fmt.Sprintf("#%s", color) };
+	border: { fmt.Sprintf("3px solid #%s", color) };
+	border-radius: 50%;
+	transition: all 0.16s;
 }
 
 css radioLabel() {
 	text-indent: -1000px;
 	overflow: hidden;
 	display: inline-block;
-	padding-left: 50px;
-	padding-bottom: 50px;
+	padding-left: 58px;
+	padding-bottom: 56px;
 	position: relative;
-	
 	cursor: pointer;
-	font-size: 22px;
 	-webkit-user-select: none;
 	-moz-user-select: none;
 	-ms-user-select: none;
@@ -116,17 +116,17 @@ templ statsTable() {
 	</table>
 }
 
-templ colorInput(color string, displayColor string) {
+templ colorInput(color string, _ string) {
 	<label class={ radioLabel() }>
-		<input type="radio" name="color" class={ radio() } value={color}></input>
-		{displayColor}
+		<input type="radio" name="color" class={ radio() } value={ color }/>
+		<span class={ check(color) }></span>
 	</label>
 }
 
 templ sizeInput(size string) {
 	<label class={ radioLabel() }>
-		<input type="radio" name="size" value={ size } class={ radio() }></input>
-		{size}
+		<input type="radio" name="size" value={ size } class={ radio() }/>
+		<span class={ check("ff00ff") }></span>
 	</label>
 }
 
@@ -140,7 +140,7 @@ templ Index(port string) {
 		</head>
 		<body class={ body() }>
 			<div class={ content() }>
-				<img class={ grid() } onmousedown="StartDrawing(event)" onmouseup="StopDrawing()" src="/grid" draggable="false" />
+				<img class={ grid() } onmousedown="StartDrawing(event)" onmouseup="StopDrawing()" src="/grid" draggable="false"/>
 				<div class={ inputRow() }>
 					@colorInput("000000", "black")
 					@colorInput("ff0000", "red")
@@ -157,7 +157,6 @@ templ Index(port string) {
 					@sizeInput("32")
 					@sizeInput("64")
 				</div>
-
 				<p class={ text() }>this pixelflut is accessible on port { port }</p>
 				@statsTable()
 			</div>

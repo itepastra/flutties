@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"image/jpeg"
-	"image/png"
 	"log"
 	"mime/multipart"
 	"net"
@@ -134,6 +133,11 @@ func handleConnection(conn net.Conn, grids [types.GRID_AMOUNT]*types.Grid) {
 		currentClients = currentClients - 1
 		conn.Close()
 	}()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Recovered in handleConnection: ", r)
+		}
+	}()
 	c := bufio.NewScanner(conn)
 	c.Split(ScanCommands)
 	for {
@@ -163,13 +167,12 @@ func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter, ch <-chan str
 	multipartWriter := multipart.NewWriter(multiWriter)
 	multipartWriter.SetBoundary(BOUNDARY_STRING)
 	header := make(textproto.MIMEHeader)
-	header.Add("Content-Type", "image/png")
+	header.Add("Content-Type", "image/jpeg")
 	for {
 		select {
 		case <-ch:
 			writer, _ := multipartWriter.CreatePart(header)
-			// jpeg.Encode(writer, grid, &jpeg.Options{Quality: 75})
-			png.Encode(writer, grid)
+			jpeg.Encode(writer, grid, &jpeg.Options{Quality: 75})
 		}
 	}
 }
@@ -260,10 +263,10 @@ func main() {
 		}
 	})
 	http.HandleFunc("/icon", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Content-Type", "image/jpeg")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Connection", "close")
-		png.Encode(w, &icoGrid)
+		jpeg.Encode(w, &icoGrid, &jpeg.Options{Quality: 90})
 	})
 	http.HandleFunc("/grid", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(
@@ -322,7 +325,7 @@ func main() {
 				if x+j >= grid.SizeX {
 					break
 				}
-				if i*i+j*j > size*size {
+				if i*i+j*j >= size*size {
 					continue
 				}
 				err = grid.Set(uint32(j+x)<<16|uint32(i+y), uint32(color))
