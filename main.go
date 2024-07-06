@@ -217,7 +217,10 @@ func main() {
 	go frameTimer(&grid, ch)
 
 	http.Handle("/", templ.Handler(pages.Index(*pixelflut_port_external)))
-	http.HandleFunc("/icoflut.js", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "./static/icoflut.js") })
+	http.HandleFunc("/icoflut.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "text/javascript")
+		http.ServeFile(w, r, "./static/icoflut.js")
+	})
 	http.HandleFunc("/icoflut", func(w http.ResponseWriter, r *http.Request) {
 		c, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
