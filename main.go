@@ -298,7 +298,6 @@ func main() {
 			if err != nil {
 				return
 			}
-			log.Println(string(data))
 			drawCall := drawcall{}
 			err = json.Unmarshal(data, &drawCall)
 			if err != nil {
