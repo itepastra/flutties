@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"image/jpeg"
+	"io"
 	"log"
 	"mime/multipart"
 	"net"
@@ -45,7 +47,6 @@ var (
 )
 
 var (
-	changedPixels  [types.GRID_AMOUNT]uint64 = [types.GRID_AMOUNT]uint64{}
 	currentClients uint
 )
 
@@ -65,12 +66,6 @@ const (
 	S                    = helpers.S
 )
 
-func helpMsg() []byte {
-	return []byte(`This is pixelgo server
-it implements the pixelflut protocol :3
-idk what to write here yet`)
-}
-
 func dropCR(data []byte) []byte {
 	if len(data) > 0 && data[len(data)-1] == '\r' {
 		return data[0 : len(data)-1]
@@ -86,45 +81,43 @@ func CheckMinLength(data []byte, targetLen int) (advance int, token []byte, err 
 	}
 }
 
-func ScanCommands(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	if atEOF && len(data) == 0 {
-		return 0, nil, nil
-	}
-	if data[0]&0xf0 == SET_RGB {
-		return CheckMinLength(data, 8)
-	}
-
-	switch data[0] & 0xf0 {
-	case INFO:
-		return CheckMinLength(data, 1)
-	case SIZE:
-		return CheckMinLength(data, 1)
-	case GET_PIXEL_VALUE:
-		return CheckMinLength(data, 5)
-	case SET_GRAYSCALE:
-		return CheckMinLength(data, 6)
-	case SET_HALF_RGBA:
-		return CheckMinLength(data, 7)
-	case SET_RGBA:
-		return CheckMinLength(data, 9)
-	case SOUND_LOOP:
-		return CheckMinLength(data, 5)
-	case SOUND_ONCE:
-		return CheckMinLength(data, 5)
-	case H & 0xf0: // same as I
-	case P & 0xf0: // same as S
-		if i := bytes.IndexByte(data, '\n'); i >= 0 {
-			// We have a full newline-terminated line.
-			return i + 1, dropCR(data[0:i]), nil
+func createScanCommands(grids [types.GRID_AMOUNT]*types.Grid, conn io.Writer) func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	return func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
 		}
-	}
 
-	// If we're at EOF, we have a final, non-terminated line. Return it.
-	if atEOF {
+		switch data[0] & 0xf0 {
+		case INFO:
+			return helpers.HelpBin(conn, data)
+		case SIZE:
+			return helpers.InfoBin(conn, data, grids)
+		case GET_PIXEL_VALUE:
+			return helpers.GetPixelBin(conn, data, grids)
+		case SET_GRAYSCALE:
+			return helpers.SetGrayscaleBin(data, grids)
+		case SET_HALF_RGBA:
+			return helpers.SetHalfRGBABin(data, grids)
+		case SET_RGB:
+			return helpers.SetRGBBin(data, grids)
+		case SET_RGBA:
+			return helpers.SetRGBABin(data, grids)
+		case H & 0xf0:
+		case P & 0xf0:
+			if i := bytes.IndexByte(data, '\n'); i >= 0 {
+				dropped := dropCR(data[:i])
+				helpers.TextCmd(dropped, grids, conn)
+				return i + i, dropped, nil
+			}
+		}
+
+		// If we're at EOF, we have a final, non-terminated line. Return it.
+		if atEOF {
+			return 0, nil, nil
+		}
+		// Request more data.
 		return 0, nil, nil
 	}
-	// Request more data.
-	return 0, nil, nil
 }
 
 func handleConnection(conn net.Conn, grids [types.GRID_AMOUNT]*types.Grid) {
@@ -139,7 +132,7 @@ func handleConnection(conn net.Conn, grids [types.GRID_AMOUNT]*types.Grid) {
 		}
 	}()
 	c := bufio.NewScanner(conn)
-	c.Split(ScanCommands)
+	c.Split(createScanCommands(grids, conn))
 	for {
 		if !c.Scan() {
 			if c.Err() == nil {
@@ -148,13 +141,6 @@ func handleConnection(conn net.Conn, grids [types.GRID_AMOUNT]*types.Grid) {
 			log.Printf("Got error from scanner %e", c.Err())
 		}
 		var err error
-		cmd := c.Bytes()
-		instruction := cmd[0]
-		if instruction == H || instruction == I || instruction == P || instruction == S {
-			err = helpers.TextCmd(cmd, grids, conn, &changedPixels)
-		} else {
-			err = helpers.BinCmd(cmd, grids, conn, &changedPixels)
-		}
 		if err != nil {
 			log.Printf("connection %v had an error %e while sending, disconnecting", conn, err)
 			return
@@ -178,17 +164,59 @@ func frameGenerator(grid *types.Grid, multiWriter multi.MapWriter, ch <-chan str
 }
 
 func frameTimer(grid *types.Grid, ch chan<- struct{}) {
+	prev := grid.ChangedPixels
 	for {
 		ch <- struct{}{}
 		time.Sleep(JPEG_UPDATE_TIMER)
-		if time.Since(grid.Modified) > JPEG_UPDATE_TIMER*2 {
-			mt := grid.Modified
-			for mt == grid.Modified && time.Since(grid.Modified) < JPEG_PING_TIMER {
+		if prev == grid.ChangedPixels {
+			// nothing happened since last update. since no new pixels
+			for prev == grid.ChangedPixels && time.Since(grid.Modified) < JPEG_PING_TIMER {
 				time.Sleep(JPEG_UPDATE_TIMER)
 			}
 			grid.Modified = time.Now()
+		} else {
+			grid.Modified = time.Now()
 		}
 	}
+}
+
+func drawShape(grid *types.Grid, dc drawcall) error {
+	color_a, err := strconv.ParseInt(dc.Color, 16, 32)
+	if err != nil {
+		return err
+	}
+	color := uint32((color_a&0xff)<<16 | color_a&0xff00 | (color_a&0xff0000)>>16 | (0xff << 24))
+	for i := -dc.Size; i <= dc.Size; i += 1 {
+		if dc.Y+i < 0 {
+			continue
+		}
+		if dc.Y+i >= grid.SizeY {
+			break
+		}
+		for j := -dc.Size; j <= dc.Size; j += 1 {
+			if dc.X+j < 0 {
+				continue
+			}
+			if dc.X+j >= grid.SizeX {
+				break
+			}
+			if i*i+j*j >= dc.Size*dc.Size {
+				continue
+			}
+			err := grid.SetExact(uint32(i+dc.Y)<<16|uint32(j+dc.X), color)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+type drawcall struct {
+	X     int
+	Y     int
+	Color string
+	Size  int
 }
 
 func main() {
@@ -196,8 +224,8 @@ func main() {
 
 	multiWriter := multi.NewMapWriter()
 
-	grid := types.NewGridRandom(uint16(*width), uint16(*height))
-	icoGrid := types.NewGridRandom(ICON_WIDTH, ICON_HEIGHT)
+	grid := types.NewGridRandom(uint16(*width), uint16(*height), 0)
+	icoGrid := types.NewGridRandom(ICON_WIDTH, ICON_HEIGHT, 1)
 
 	ln, err := net.Listen("tcp", *pixelflut_port)
 	if err != nil {
@@ -253,13 +281,31 @@ func main() {
 			return
 		}
 		defer c.Close()
+		// keep writing the stats to the websocket
+		go func() {
+			for {
+				writer, err := c.NextWriter(websocket.TextMessage)
+				if err != nil {
+					return
+				}
+				writer.Write([]byte(fmt.Sprintf(`{"c":%d,"p":%d,"i":%d}`, currentClients, grid.ChangedPixels, icoGrid.ChangedPixels)))
+				time.Sleep(STATS_UPDATE_TIMER)
+			}
+		}()
+		// receive draw calls from the websocket
 		for {
-			writer, err := c.NextWriter(websocket.TextMessage)
+			_, data, err := c.ReadMessage()
 			if err != nil {
 				return
 			}
-			writer.Write([]byte(fmt.Sprintf(`{"c":%d,"p":%d,"i":%d}`, currentClients, changedPixels[0], changedPixels[1])))
-			time.Sleep(STATS_UPDATE_TIMER)
+			log.Println(string(data))
+			drawCall := drawcall{}
+			err = json.Unmarshal(data, &drawCall)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			drawShape(&grid, drawCall)
 		}
 	})
 	http.HandleFunc("/icon", func(w http.ResponseWriter, r *http.Request) {
@@ -302,7 +348,8 @@ func main() {
 			log.Println("color parse err")
 			return
 		}
-		color = color<<8 | 0xff
+		color = (color&0xff)<<16 | color&0xff00 | (color&0xff0000)>>16 | (0xff << 24)
+		log.Println(color)
 
 		sizeStr := r.PathValue("size")
 		size, err := strconv.Atoi(sizeStr)
@@ -328,7 +375,7 @@ func main() {
 				if i*i+j*j >= size*size {
 					continue
 				}
-				err = grid.Set(uint32(j+x)<<16|uint32(i+y), uint32(color))
+				err = grid.SetExact(uint32(i+y)<<16|uint32(j+x), uint32(color))
 				if err != nil {
 					log.Println("oop")
 					return

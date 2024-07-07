@@ -4,6 +4,7 @@ function nString(value) {
 }
 
 var isDrawing = false;
+var ws = undefined;
 
 async function StartDrawing(e) {
 	isDrawing = true;
@@ -19,7 +20,11 @@ async function StartDrawing(e) {
 	let color = document.querySelector("input[name=color]:checked").value;
 	let size = document.querySelector("input[name=size]:checked").value;
 
-	fetch(`color/${imgX}/${imgY}/${color}/${size}`, {method: "POST",});
+	if (typeof (ws) == WebSocket) {
+		ws.send(JSON.stringify({ x: imgX, y: imgY, color: color, size: size }))
+	} else {
+		console.log("websocket needs to connect first")
+	}
 }
 
 function StopDrawing() {
@@ -40,10 +45,14 @@ onpointermove = async function (e) {
 	let color = document.querySelector("input[name=color]:checked").value;
 	let size = document.querySelector("input[name=size]:checked").value;
 
-	fetch(`color/${imgX}/${imgY}/${color}/${size}`, {method: "POST",});
+	if (typeof ws !== 'undefined') {
+		ws.send(JSON.stringify({ x: imgX, y: imgY, color: color, size: +size }))
+	} else {
+		console.log("websocket needs to connect first")
+	}
 };
 
-window.onload = function() {
+window.onload = function () {
 	var favicon = document.getElementById("favicon");
 
 	var client = document.getElementById("clientCounter");
@@ -62,19 +71,20 @@ window.onload = function() {
 
 	const socket = new WebSocket("/icoflut");
 	const stats = new WebSocket("/stats");
+	ws = stats;
 
-	stats.onopen = function() {
+	stats.onopen = function () {
 		console.log('Connected to stats.');
 	};
 	stats.onerror = function (error) {
 		console.error("An unknown error occured", error);
 	};
-	
+
 	stats.onclose = function (event) {
 		console.log("Server closed connection", event);
 	}
 
-	stats.onmessage = function(event) {
+	stats.onmessage = function (event) {
 		const obj = JSON.parse(event.data);
 		client.innerText = nString(obj.c)
 
@@ -89,18 +99,18 @@ window.onload = function() {
 		iconAvg.innerText = nString(obj.i - old)
 	}
 
-	socket.onopen = function() {
+	socket.onopen = function () {
 		console.log('Connected to icoflut.');
 	};
 	socket.onerror = function (error) {
 		console.error("An unknown error occured", error);
 	};
-	
+
 	socket.onclose = function (event) {
 		console.log("Server closed connection", event);
 	}
 
-	socket.onmessage = function(event) {
+	socket.onmessage = function (event) {
 		urlCreator = window.URL || window.webkitURL;
 		favicon.href = urlCreator.createObjectURL(event.data);
 	}

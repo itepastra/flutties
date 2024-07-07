@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"sync/atomic"
+	"unsafe"
 
 	"github.com/itepastra/flutties/types"
 )
@@ -102,64 +102,116 @@ func parsePx(command []byte) (x uint16, y uint16, found bool, color uint32, err 
 }
 
 func pack(a, b, c, d byte) uint32 {
-	return uint32(a)<<24 | uint32(b)<<16 | uint32(c)<<8 | uint32(d)
+	return uint32(d)<<24 | uint32(c)<<16 | uint32(b)<<8 | uint32(a)
 }
 
-func inc(changePixels *[types.GRID_AMOUNT]uint64, idx byte) {
-	atomic.AddUint64(&changePixels[idx], 1)
+func cmdLen(cmd []byte, desired int) bool {
+	return len(cmd) < desired
 }
 
-func BinCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer, changedPixels *[types.GRID_AMOUNT]uint64) (err error) {
-	canvasId := cmd[0] & 0x0f
-	switch cmd[0] & 0xf0 {
-	case INFO:
-		_, err = writer.Write([]byte(fmt.Sprintf("There are %d grids", len(grids))))
-	case SIZE:
-		_, err = writer.Write([]byte{
-			cmd[0],
-			byte(grids[canvasId].SizeX >> 8),
-			byte(grids[canvasId].SizeX),
-			byte(grids[canvasId].SizeY >> 8),
-			byte(grids[canvasId].SizeY),
-		})
-	case GET_PIXEL_VALUE:
-		x := uint16(cmd[1])<<8 | uint16(cmd[2])
-		y := uint16(cmd[3])<<8 | uint16(cmd[4])
-		color, err := grids[canvasId].Get(x, y)
-		if err != nil {
-			return err
-		}
-		_, err = writer.Write([]byte{
-			cmd[0],
-			cmd[1],
-			cmd[2],
-			cmd[3],
-			cmd[4],
-			byte(color >> 24),
-			byte(color >> 16),
-			byte(color >> 8),
-		})
-	case SET_GRAYSCALE:
-		err = grids[canvasId].Set(pack(cmd[1], cmd[2], cmd[3], cmd[4]), uint32(cmd[5])<<24|uint32(cmd[5])<<16|uint32(cmd[5])<<8|0xff)
-		inc(changedPixels, canvasId)
-	case SET_HALF_RGBA:
-		r := (cmd[5] & 0xf0) | (cmd[5]&0xf0)>>4
-		g := (cmd[5]&0x0f)<<4 | (cmd[5] & 0x0f)
-		b := (cmd[6] & 0xf0) | (cmd[6]&0xf0)>>4
-		a := (cmd[6]&0x0f)<<4 | (cmd[6] & 0x0f)
-		err = grids[canvasId].Set(pack(cmd[1], cmd[2], cmd[3], cmd[4]), binary.BigEndian.Uint32([]byte{r, g, b, a}))
-		inc(changedPixels, canvasId)
-	case SET_RGB:
-		err = grids[canvasId].Set(pack(cmd[1], cmd[2], cmd[3], cmd[4]), uint32(cmd[5])<<24|uint32(cmd[6])<<16|uint32(cmd[7])<<8|0xff)
-		inc(changedPixels, canvasId)
-	case SET_RGBA:
-		err = grids[canvasId].Set(pack(cmd[1], cmd[2], cmd[3], cmd[4]), uint32(cmd[5])<<24|uint32(cmd[6])<<16|uint32(cmd[7])<<8|uint32(0xff))
-		inc(changedPixels, canvasId)
+func getCanvasId(cmd byte) byte {
+	return cmd & 0x0f
+}
+
+func getxy(cmd []byte) uint32 {
+	return *(*uint32)(unsafe.Pointer(&cmd[1]))
+}
+
+func getrgb(cmd []byte) uint32 {
+	return *(*uint32)(unsafe.Pointer(&cmd[5]))
+}
+
+func HelpBin(writer io.Writer, cmd []byte) (int, []byte, error) {
+	_, err := writer.Write([]byte(fmt.Sprintf("There are %d grids", types.GRID_AMOUNT)))
+	return 1, cmd[:1], err
+}
+
+func InfoBin(writer io.Writer, cmd []byte, grids [types.GRID_AMOUNT]*types.Grid) (int, []byte, error) {
+	canvasId := getCanvasId(cmd[0])
+	_, err := writer.Write([]byte{
+		cmd[0],
+		byte(grids[canvasId].SizeX >> 8),
+		byte(grids[canvasId].SizeX),
+		byte(grids[canvasId].SizeY >> 8),
+		byte(grids[canvasId].SizeY),
+	})
+	return 1, cmd[:1], err
+}
+
+func GetPixelBin(writer io.Writer, cmd []byte, grids [types.GRID_AMOUNT]*types.Grid) (int, []byte, error) {
+	canvasId := getCanvasId(cmd[0])
+	if cmdLen(cmd, 5) {
+		return 0, nil, nil
 	}
-	return
+
+	x := uint16(cmd[2])<<8 | uint16(cmd[1])
+	y := uint16(cmd[4])<<8 | uint16(cmd[3])
+
+	color, err := grids[canvasId].Get(x, y)
+	if err != nil {
+		return 5, cmd[:5], err
+	}
+	_, err = writer.Write([]byte{
+		cmd[0],
+		cmd[1],
+		cmd[2],
+		cmd[3],
+		cmd[4],
+		byte(color >> 24),
+		byte(color >> 16),
+		byte(color >> 8),
+	})
+	return 5, cmd[:5], err
 }
 
-func TextCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer, changedPixels *[types.GRID_AMOUNT]uint64) (err error) {
+func SetGrayscaleBin(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid) (int, []byte, error) {
+	canvasId := getCanvasId(cmd[0])
+	if len(cmd) < 6 {
+		return 0, nil, nil
+	}
+
+	xy := *(*uint32)(unsafe.Pointer(&cmd[1]))
+	color := uint32(cmd[5])<<24 | uint32(cmd[5])<<16 | uint32(cmd[5])<<8 | 0xff
+
+	err := grids[canvasId].SetExact(xy, color)
+	return 6, cmd[:6], err
+}
+
+func SetHalfRGBABin(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid) (int, []byte, error) {
+	canvasId := getCanvasId(cmd[0])
+	if len(cmd) < 7 {
+		return 0, nil, nil
+	}
+
+	r := (cmd[5] & 0xf0) | (cmd[5]&0xf0)>>4
+	g := (cmd[5]&0x0f)<<4 | (cmd[5] & 0x0f)
+	b := (cmd[6] & 0xf0) | (cmd[6]&0xf0)>>4
+	a := (cmd[6]&0x0f)<<4 | (cmd[6] & 0x0f)
+	err := grids[canvasId].Set(pack(cmd[1], cmd[2], cmd[3], cmd[4]), binary.BigEndian.Uint32([]byte{r, g, b, a}))
+
+	return 7, cmd[:7], err
+}
+
+func SetRGBBin(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid) (int, []byte, error) {
+	canvasId := getCanvasId(cmd[0])
+	if cmdLen(cmd, 8) {
+		return 0, nil, nil
+	}
+	err := grids[canvasId].SetExact(getxy(cmd), getrgb(cmd))
+	return 8, cmd[:8], err
+}
+
+func SetRGBABin(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid) (int, []byte, error) {
+	canvasId := getCanvasId(cmd[0])
+	if cmdLen(cmd, 8) {
+		return 0, nil, nil
+	}
+
+	err := grids[canvasId].Set(pack(cmd[1], cmd[2], cmd[3], cmd[4]), uint32(cmd[5])<<24|uint32(cmd[6])<<16|uint32(cmd[7])<<8|uint32(cmd[8]))
+	return 9, cmd[:9], err
+}
+
+func TextCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer) (err error) {
 	if bytes.Compare(cmd, HELP_COMMAND) == 0 {
 		_, err = writer.Write(helpMessage)
 	} else if bytes.Compare(cmd, SIZE_COMMAND) == 0 {
@@ -179,7 +231,6 @@ func TextCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer,
 			_, err = writer.Write([]byte(fmt.Sprintf("PX %d %d %s\n", x, y, PxToHex(c))))
 		} else {
 			err = grids[MAIN_GRID_INDEX].Set(uint32(x)<<16|uint32(y), color)
-			inc(changedPixels, 0)
 		}
 	} else if rest, found := bytes.CutPrefix(cmd, PX_ICON_COMMAND_START); found {
 		x, y, found, color, err := parsePx(rest)
@@ -194,7 +245,6 @@ func TextCmd(cmd []byte, grids [types.GRID_AMOUNT]*types.Grid, writer io.Writer,
 			_, err = writer.Write([]byte(fmt.Sprintf("PX %d %d %s\n", x, y, PxToHex(c))))
 		} else {
 			err = grids[ICON_GRID_INDEX].Set(uint32(x)<<16|uint32(y), color)
-			inc(changedPixels, 1)
 		}
 	}
 	return
