@@ -86,6 +86,9 @@ func createScanCommands(grids [types.GRID_AMOUNT]*types.Grid, conn io.Writer) fu
 		if atEOF && len(data) == 0 {
 			return 0, nil, nil
 		}
+		if len(data) == 0 {
+			return 0, nil, nil
+		}
 
 		switch data[0] & 0xf0 {
 		case INFO:
