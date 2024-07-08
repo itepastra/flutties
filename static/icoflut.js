@@ -6,33 +6,7 @@ function nString(value) {
 var isDrawing = false;
 var ws = undefined;
 
-async function StartDrawing(e) {
-	isDrawing = true;
-	let ratioX = e.target.naturalWidth / e.target.offsetWidth;
-	let ratioY = e.target.naturalHeight / e.target.offsetHeight;
-
-	let domX = e.x + window.scrollX - e.target.offsetLeft;
-	let domY = e.y + window.scrollY - e.target.offsetTop;
-
-	let imgX = Math.floor(domX * ratioX);
-	let imgY = Math.floor(domY * ratioY);
-
-	let color = document.querySelector("input[name=color]:checked").value;
-	let size = document.querySelector("input[name=size]:checked").value;
-
-	if (typeof (ws) == WebSocket) {
-		ws.send(JSON.stringify({ x: imgX, y: imgY, color: color, size: size }))
-	} else {
-		console.log("websocket needs to connect first")
-	}
-}
-
-function StopDrawing() {
-	isDrawing = false;
-}
-
-onpointermove = async function (e) {
-	if (!isDrawing) { return; }
+function DrawAtCursor(e) {
 	let ratioX = e.target.naturalWidth / e.target.offsetWidth;
 	let ratioY = e.target.naturalHeight / e.target.offsetHeight;
 
@@ -46,10 +20,28 @@ onpointermove = async function (e) {
 	let size = document.querySelector("input[name=size]:checked").value;
 
 	if (typeof ws !== 'undefined') {
+		if (!imgX || !imgY) {
+			console.log("waaa")
+			return
+		}
 		ws.send(JSON.stringify({ x: imgX, y: imgY, color: color, size: +size }))
 	} else {
 		console.log("websocket needs to connect first")
 	}
+}
+
+async function StartDrawing(e) {
+	isDrawing = true;
+	DrawAtCursor(e)
+}
+
+function StopDrawing() {
+	isDrawing = false;
+}
+
+onpointermove = async function (e) {
+	if (!isDrawing) { return; }
+	DrawAtCursor(e)
 };
 
 window.onload = function () {

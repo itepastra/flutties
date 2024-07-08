@@ -140,7 +140,7 @@ templ Index(port string) {
 		</head>
 		<body class={ body() }>
 			<div class={ content() }>
-				<img class={ grid() } onmousedown="StartDrawing(event)" onmouseup="StopDrawing()" src="/grid" draggable="false"/>
+				<img class={ grid() } onpointerdown="StartDrawing(event)" onpointerup="StopDrawing()" src="/grid" draggable="false"/>
 				<div class={ inputRow() }>
 					@colorInput("000000", "black")
 					@colorInput("ff0000", "red")
